@@ -15,6 +15,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import { logout } from "@/lib/auth"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -111,7 +112,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => logout()}>
               <IconLogout />
               Log out
             </DropdownMenuItem>

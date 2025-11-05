@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { isAuthenticated } from '@/lib/auth'
+import { isAuthenticated, getUserGroups } from '@/lib/auth'
 
 export default function DashboardLayout({
   children,
@@ -14,14 +14,21 @@ export default function DashboardLayout({
 
   useEffect(() => {
     let mounted = true
-    isAuthenticated().then((ok) => {
+    ;(async () => {
+      const ok = await isAuthenticated()
       if (!mounted) return
       if (!ok) {
         router.replace('/login')
-      } else {
-        setReady(true)
+        return
       }
-    })
+      const groups = await getUserGroups()
+      const allowed = groups.includes('Admin') || groups.includes('Business Owner')
+      if (!allowed) {
+        router.replace('/unauthorized')
+        return
+      }
+      setReady(true)
+    })()
     return () => {
       mounted = false
     }

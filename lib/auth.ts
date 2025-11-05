@@ -84,4 +84,43 @@ export async function isAuthenticated(): Promise<boolean> {
   }
 }
 
+export async function getJWTClaims(): Promise<any> {
+  try {
+    const auth0 = await getAuth0Client()
+    const claims = await auth0.getIdTokenClaims()
+    return claims || null
+  } catch {
+    return null
+  }
+}
+
+export async function getUserGroups(): Promise<string[]> {
+  try {
+    const claims = await getJWTClaims()
+    return (claims?.user_group as string[]) || []
+  } catch {
+    return []
+  }
+}
+
+export type AppUserProfile = {
+  name: string
+  email: string
+  avatar: string
+  groups: string[]
+}
+
+export async function getAppUserProfile(): Promise<AppUserProfile | null> {
+  const u = await getUser()
+  if (!u) return null
+  const claims = await getJWTClaims()
+  const groups = ((claims?.user_group as string[]) || []).filter(Boolean)
+  return {
+    name: u.name || u.nickname || u.email || 'User',
+    email: u.email || '',
+    avatar: (u.picture as string) || '',
+    groups,
+  }
+}
+
 
