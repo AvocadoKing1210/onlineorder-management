@@ -31,6 +31,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { SettingsDialog } from "@/components/settings-dialog"
+import { useTranslation } from "@/components/i18n-text"
 
 export function NavUser({
   user,
@@ -43,6 +44,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const { t } = useTranslation()
 
   return (
     <SidebarMenu>
@@ -90,24 +92,24 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <IconNotification />
-                Notifications
+                {t("userMenu.notifications")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
                 <IconSettings />
-                Settings
+                {t("userMenu.settings")}
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconHelp />
-                Get Help
+                {t("userMenu.getHelp")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => logout()}>
               <IconLogout />
-              Log out
+              {t("userMenu.logOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

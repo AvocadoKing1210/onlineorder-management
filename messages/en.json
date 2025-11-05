@@ -1,0 +1,83 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "discard": "Discard",
+    "close": "Close",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search…",
+    "noResults": "No results found."
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "dashboardTooltip": "View dashboard overview and key metrics",
+    "operations": "Operations",
+    "orders": "Orders",
+    "ordersTooltip": "Manage and track customer orders",
+    "qrCodes": "QR Codes",
+    "qrCodesTooltip": "Generate and manage QR codes for dine-in",
+    "content": "Content",
+    "menu": "Menu",
+    "menuTooltip": "Manage menu categories, items, and modifiers",
+    "categories": "Categories",
+    "categoriesTooltip": "Organize menu items by categories",
+    "items": "Items",
+    "itemsTooltip": "Manage menu items and pricing",
+    "modifiers": "Modifiers",
+    "modifiersTooltip": "Configure item modifiers and options",
+    "promotions": "Promotions",
+    "promotionsTooltip": "Create and manage promotional offers",
+    "notifications": "Notifications",
+    "notificationsTooltip": "Manage announcements and notifications",
+    "insights": "Insights",
+    "reviews": "Reviews",
+    "reviewsTooltip": "View and moderate customer reviews",
+    "analytics": "Analytics",
+    "analyticsTooltip": "View business analytics and reports",
+    "inventory": "Inventory",
+    "inventoryTooltip": "Track inventory and stock notes"
+  },
+  "userMenu": {
+    "notifications": "Notifications",
+    "settings": "Settings",
+    "getHelp": "Get Help",
+    "logOut": "Log out"
+  },
+  "commandPalette": {
+    "placeholder": "Type a command or search…",
+    "operations": "Operations",
+    "content": "Content",
+    "insights": "Insights",
+    "menuItems": "Menu Items"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "notifications": "Notifications",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "chooseTheme": "Choose your preferred color scheme",
+    "languageAndRegion": "Language & Region",
+    "preferredLocale": "Preferred Locale",
+    "selectLanguage": "Select your preferred language",
+    "notificationPreferences": "Notification Preferences",
+    "enableNotifications": "Enable notifications",
+    "notificationsDescription": "Receive notifications about important updates and events",
+    "unsavedChanges": "Unsaved Changes",
+    "unsavedChangesDescription": "You have unsaved changes. What would you like to do?",
+    "changedSettings": "Changed settings:",
+    "discardChanges": "Discard Changes",
+    "settingsSaved": "Settings saved successfully",
+    "saveFailed": "Failed to save settings"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}
+

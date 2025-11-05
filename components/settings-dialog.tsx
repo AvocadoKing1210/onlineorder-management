@@ -29,6 +29,8 @@ import {
   type ManagementPreference,
 } from "@/lib/preferences"
 import { usePreferences } from "@/lib/preferences-context"
+import { useLocale } from "@/lib/locale-context"
+import { t, localeNames, type Locale } from "@/lib/i18n"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useTheme } from "next-themes"
@@ -46,23 +48,26 @@ interface CategoryConfig {
   icon: React.ComponentType<{ className?: string }>
 }
 
-const categories: CategoryConfig[] = [
+// Categories will be translated dynamically based on locale
+const getCategories = (locale: Locale): CategoryConfig[] => [
   {
     id: "general",
-    label: "General",
+    label: t(locale)("settings.general"),
     icon: IconSettings,
   },
   {
     id: "notifications",
-    label: "Notifications",
+    label: t(locale)("settings.notifications"),
     icon: IconBell,
   },
 ]
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { preferences, refreshPreferences } = usePreferences()
+  const { locale, setLocale } = useLocale()
   const [selectedCategory, setSelectedCategory] =
     useState<SettingsCategory>("general")
+  const translations = t(locale)
   const [saving, setSaving] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const pendingClose = useRef(false)
@@ -144,25 +149,25 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     )
   }
 
-  // Get list of changed fields
+  // Get list of changed fields (translated)
   const getChangedFields = (): string[] => {
     if (!originalPreferences) return []
     const changes: string[] = []
     
     if (localPreferences.theme !== originalPreferences.theme) {
-      changes.push("Theme")
+      changes.push(translations("settings.theme"))
     }
     if (localPreferences.preferred_locale !== originalPreferences.preferred_locale) {
-      changes.push("Preferred Locale")
+      changes.push(translations("settings.preferredLocale"))
     }
     if (localPreferences.sidebar_collapsed !== originalPreferences.sidebar_collapsed) {
-      changes.push("Sidebar Collapsed")
+      changes.push("Sidebar Collapsed") // Not in translations yet
     }
     if (localPreferences.notifications_enabled !== originalPreferences.notifications_enabled) {
-      changes.push("Notifications Enabled")
+      changes.push(translations("settings.enableNotifications"))
     }
     if (localPreferences.user_guide_completed !== originalPreferences.user_guide_completed) {
-      changes.push("User Guide Completed")
+      changes.push("User Guide Completed") // Not in translations yet
     }
     
     return changes
@@ -179,8 +184,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   }
 
   const handleConfirmDiscard = () => {
-    // Revert theme to original when discarding
+    // Revert theme and locale to original when discarding
     setTheme(originalPreferences.theme)
+    setLocale(originalPreferences.preferred_locale as Locale)
     setLocalPreferences(originalPreferences)
     onOpenChange(false)
     setShowConfirmDialog(false)
@@ -209,15 +215,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       if (success) {
         await refreshPreferences()
         setOriginalPreferences(localPreferences)
-        toast.success("Settings saved successfully")
+        toast.success(translations("settings.settingsSaved"))
         return true
       } else {
-        toast.error("Failed to save settings")
+        toast.error(translations("settings.saveFailed"))
         return false
       }
     } catch (error) {
       console.error("Error saving preferences:", error)
-      toast.error("Failed to save settings")
+      toast.error(translations("settings.saveFailed"))
       return false
     } finally {
       setSaving(false)
@@ -227,10 +233,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const renderGeneralSettings = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-medium mb-4">Appearance</h3>
+        <h3 className="text-sm font-medium mb-4">{translations("settings.appearance")}</h3>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="theme">Theme</Label>
+            <Label htmlFor="theme">{translations("settings.theme")}</Label>
             <Select
               value={localPreferences.theme || "system"}
               onValueChange={(value: "light" | "dark" | "system") => {
@@ -243,16 +249,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               }}
             >
               <SelectTrigger id="theme" className="w-full sm:w-[300px]">
-                <SelectValue placeholder="Select theme" />
+                <SelectValue placeholder={translations("settings.theme")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
-                <SelectItem value="system">System</SelectItem>
+                <SelectItem value="light">{translations("theme.light")}</SelectItem>
+                <SelectItem value="dark">{translations("theme.dark")}</SelectItem>
+                <SelectItem value="system">{translations("theme.system")}</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground">
-              Choose your preferred color scheme
+              {translations("settings.chooseTheme")}
             </p>
           </div>
         </div>
@@ -261,30 +267,31 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       <Separator />
 
       <div>
-        <h3 className="text-sm font-medium mb-4">Language & Region</h3>
+        <h3 className="text-sm font-medium mb-4">{translations("settings.languageAndRegion")}</h3>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="locale">Preferred Locale</Label>
+            <Label htmlFor="locale">{translations("settings.preferredLocale")}</Label>
             <Select
               value={localPreferences.preferred_locale || "en"}
-              onValueChange={(value) =>
+              onValueChange={(value: Locale) => {
+                // Apply locale immediately when user selects it
+                setLocale(value)
                 setLocalPreferences({
                   ...localPreferences,
                   preferred_locale: value,
                 })
-              }
+              }}
             >
               <SelectTrigger id="locale" className="w-full sm:w-[300px]">
-                <SelectValue placeholder="Select locale" />
+                <SelectValue placeholder={translations("settings.selectLanguage")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="fr">Français</SelectItem>
-                <SelectItem value="zh">中文</SelectItem>
+                <SelectItem value="en">{localeNames.en}</SelectItem>
+                <SelectItem value="zh">{localeNames.zh}</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground">
-              Select your preferred language
+              {translations("settings.selectLanguage")}
             </p>
           </div>
         </div>
@@ -297,7 +304,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const renderNotificationsSettings = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-medium mb-4">Notification Preferences</h3>
+        <h3 className="text-sm font-medium mb-4">{translations("settings.notificationPreferences")}</h3>
         <div className="space-y-4">
           <div className="flex items-center space-x-3">
             <Checkbox
@@ -315,10 +322,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 htmlFor="notifications-enabled"
                 className="text-sm font-normal cursor-pointer"
               >
-                Enable notifications
+                {translations("settings.enableNotifications")}
               </Label>
               <p className="text-sm text-muted-foreground mt-1">
-                Receive notifications about important updates and events
+                {translations("settings.notificationsDescription")}
               </p>
             </div>
           </div>
@@ -353,7 +360,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b">
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle className="text-lg sm:text-xl">Settings</DialogTitle>
+                <DialogTitle className="text-lg sm:text-xl">{translations("settings.title")}</DialogTitle>
               </div>
               <Button
                 variant="ghost"
@@ -370,7 +377,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           {/* Side Navigation */}
           <div className="w-full sm:w-64 border-b sm:border-b-0 sm:border-r bg-muted/30 flex-shrink-0 overflow-x-auto sm:overflow-y-auto">
             <nav className="p-3 sm:p-4 flex sm:flex-col gap-1 sm:space-y-1">
-              {categories.map((category) => {
+              {getCategories(locale).map((category) => {
                 const Icon = category.icon
                 const isActive = selectedCategory === category.id
                 return (
@@ -408,14 +415,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             disabled={saving}
             className="w-full sm:w-auto"
           >
-            Cancel
+            {translations("common.cancel")}
           </Button>
           <Button 
             onClick={() => { handleSave(); onOpenChange(false) }} 
             disabled={saving || !hasChanges()} 
             className="w-full sm:w-auto"
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? translations("common.saving") : translations("common.saveChanges")}
           </Button>
         </div>
       </DialogContent>
@@ -425,14 +432,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-4 pt-4 pb-2">
-          <DialogTitle>Unsaved Changes</DialogTitle>
+          <DialogTitle>{translations("settings.unsavedChanges")}</DialogTitle>
           <DialogDescription>
-            You have unsaved changes. What would you like to do?
+            {translations("settings.unsavedChangesDescription")}
           </DialogDescription>
         </DialogHeader>
         {getChangedFields().length > 0 && (
           <div className="px-4 pb-2">
-            <p className="text-sm font-medium mb-1">Changed settings:</p>
+            <p className="text-sm font-medium mb-1">{translations("settings.changedSettings")}</p>
             <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
               {getChangedFields().map((field) => (
                 <li key={field}>{field}</li>
@@ -447,14 +454,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             disabled={saving}
             className="w-full sm:w-auto"
           >
-            Discard Changes
+            {translations("settings.discardChanges")}
           </Button>
           <Button
             onClick={handleConfirmSave}
             disabled={saving}
             className="w-full sm:w-auto"
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? translations("common.saving") : translations("common.saveChanges")}
           </Button>
         </div>
       </DialogContent>

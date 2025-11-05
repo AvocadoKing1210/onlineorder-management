@@ -6,6 +6,7 @@ import { isAuthenticated, getUserGroups } from '@/lib/auth'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from 'next-themes'
 import { PreferencesProvider } from '@/lib/preferences-context'
+import { LocaleProvider } from '@/lib/locale-context'
 
 export default function DashboardLayout({
   children,
@@ -41,8 +42,10 @@ export default function DashboardLayout({
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <PreferencesProvider>
-        {children}
-        <Toaster />
+        <LocaleProvider>
+          {children}
+          <Toaster />
+        </LocaleProvider>
       </PreferencesProvider>
     </ThemeProvider>
   )
