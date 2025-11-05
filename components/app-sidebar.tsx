@@ -3,7 +3,8 @@
 import * as React from "react"
 import { IconSearch } from "@tabler/icons-react"
 import { Building2 } from "lucide-react"
-import { navigationData } from "@/data/navigation"
+import { getNavigationData } from "@/data/navigation-i18n"
+import { useLocale } from "@/lib/locale-context"
 import { useEffect, useState } from "react"
 import { getAppUserProfile, type AppUserProfile } from "@/lib/auth"
 import { CommandPalette } from "@/components/command-palette"
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/sidebar"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { locale } = useLocale()
   const [user, setUser] = useState<AppUserProfile | null>(null)
   useEffect(() => {
     let mounted = true
@@ -53,7 +55,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navigationData} />
+        <NavMain items={getNavigationData(locale)} />
       </SidebarContent>
       <SidebarFooter>
         {user && (

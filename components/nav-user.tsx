@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   IconDotsVertical,
   IconHelp,
@@ -29,6 +30,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { SettingsDialog } from "@/components/settings-dialog"
+import { useTranslation } from "@/components/i18n-text"
 
 export function NavUser({
   user,
@@ -40,6 +43,9 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsCategory, setSettingsCategory] = useState<"general" | "notifications" | undefined>(undefined)
+  const { t } = useTranslation()
 
   return (
     <SidebarMenu>
@@ -85,29 +91,46 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => {
+                setSettingsCategory("notifications")
+                setSettingsOpen(true)
+              }}>
                 <IconNotification />
-                Notifications
+                {t("userMenu.notifications")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => {
+                setSettingsCategory("general")
+                setSettingsOpen(true)
+              }}>
                 <IconSettings />
-                Settings
+                {t("userMenu.settings")}
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconHelp />
-                Get Help
+                {t("userMenu.getHelp")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => logout()}>
               <IconLogout />
-              Log out
+              {t("userMenu.logOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <SettingsDialog 
+          open={settingsOpen} 
+          onOpenChange={(open) => {
+            setSettingsOpen(open)
+            if (!open) {
+              // Reset category when dialog closes
+              setSettingsCategory(undefined)
+            }
+          }}
+          initialCategory={settingsCategory}
+        />
       </SidebarMenuItem>
     </SidebarMenu>
   )

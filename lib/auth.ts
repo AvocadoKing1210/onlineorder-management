@@ -123,4 +123,13 @@ export async function getAppUserProfile(): Promise<AppUserProfile | null> {
   }
 }
 
+export async function getUserId(): Promise<string | null> {
+  try {
+    const user = await getUser()
+    return user?.sub || null
+  } catch {
+    return null
+  }
+}
+
 

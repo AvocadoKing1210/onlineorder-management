@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { isAuthenticated, getUserGroups } from '@/lib/auth'
+import { Toaster } from '@/components/ui/sonner'
+import { ThemeProvider } from 'next-themes'
+import { PreferencesProvider } from '@/lib/preferences-context'
+import { LocaleProvider } from '@/lib/locale-context'
 
 export default function DashboardLayout({
   children,
@@ -35,7 +39,16 @@ export default function DashboardLayout({
   }, [router])
 
   if (!ready) return null
-  return <>{children}</>
+  return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <PreferencesProvider>
+        <LocaleProvider>
+          {children}
+          <Toaster />
+        </LocaleProvider>
+      </PreferencesProvider>
+    </ThemeProvider>
+  )
 }
 
 
