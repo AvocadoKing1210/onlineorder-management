@@ -76,29 +76,29 @@ export function CommandPalette() {
                             <CommandItem key={subItem.url} onSelect={() => setOpen(false)}>
                               {subItem.icon && <subItem.icon className="size-4" />}
                               <span>{subItem.title}</span>
-                            </CommandItem>
+              </CommandItem>
                           ))
                         }
                         return (
                           <CommandItem key={item.url} onSelect={() => setOpen(false)}>
                             {item.icon && <item.icon className="size-4" />}
                             <span>{item.title}</span>
-                          </CommandItem>
+              </CommandItem>
                         )
                       })}
-                    </CommandGroup>
-                    <CommandSeparator />
+            </CommandGroup>
+            <CommandSeparator />
                   </React.Fragment>
                 )
               }
               if ("title" in section && !("section" in section)) {
                 return (
                   <CommandGroup key={section.title} heading={t("navigation.dashboard")}>
-                    <CommandItem onSelect={() => setOpen(false)}>
+              <CommandItem onSelect={() => setOpen(false)}>
                       {section.icon && <section.icon className="size-4" />}
                       <span>{section.title}</span>
-                    </CommandItem>
-                  </CommandGroup>
+              </CommandItem>
+            </CommandGroup>
                 )
               }
               return null

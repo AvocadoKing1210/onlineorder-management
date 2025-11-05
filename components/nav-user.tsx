@@ -44,6 +44,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsCategory, setSettingsCategory] = useState<"general" | "notifications" | undefined>(undefined)
   const { t } = useTranslation()
 
   return (
@@ -90,14 +91,20 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => {
+                setSettingsCategory("notifications")
+                setSettingsOpen(true)
+              }}>
                 <IconNotification />
                 {t("userMenu.notifications")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
+              <DropdownMenuItem onSelect={() => {
+                setSettingsCategory("general")
+                setSettingsOpen(true)
+              }}>
                 <IconSettings />
                 {t("userMenu.settings")}
               </DropdownMenuItem>
@@ -113,7 +120,17 @@ export function NavUser({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+        <SettingsDialog 
+          open={settingsOpen} 
+          onOpenChange={(open) => {
+            setSettingsOpen(open)
+            if (!open) {
+              // Reset category when dialog closes
+              setSettingsCategory(undefined)
+            }
+          }}
+          initialCategory={settingsCategory}
+        />
       </SidebarMenuItem>
     </SidebarMenu>
   )

@@ -20,9 +20,15 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
   IconSettings,
   IconBell,
   IconX,
+  IconAlertTriangle,
 } from "@tabler/icons-react"
 import {
   saveManagementPreferences,
@@ -38,6 +44,7 @@ import { useTheme } from "next-themes"
 interface SettingsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialCategory?: SettingsCategory
 }
 
 type SettingsCategory = "general" | "notifications"
@@ -62,7 +69,7 @@ const getCategories = (locale: Locale): CategoryConfig[] => [
   },
 ]
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({ open, onOpenChange, initialCategory }: SettingsDialogProps) {
   const { preferences, refreshPreferences } = usePreferences()
   const { locale, setLocale } = useLocale()
   const [selectedCategory, setSelectedCategory] =
@@ -70,6 +77,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const translations = t(locale)
   const [saving, setSaving] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default")
+  const [requestingPermission, setRequestingPermission] = useState(false)
+  const [showPermissionDeniedDialog, setShowPermissionDeniedDialog] = useState(false)
   const pendingClose = useRef(false)
   
   const defaultPreferences: {
@@ -136,6 +146,125 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       pendingClose.current = false
     }
   }, [open, preferences])
+
+  // Set initial category when dialog opens
+  useEffect(() => {
+    if (open && initialCategory) {
+      setSelectedCategory(initialCategory)
+    }
+  }, [open, initialCategory])
+
+  // Check notification permission on mount and when dialog opens
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission)
+    }
+  }, [open])
+
+  // Request permission when user enables notifications
+  const handleNotificationsToggle = async (checked: boolean) => {
+    setLocalPreferences({
+      ...localPreferences,
+      notifications_enabled: checked,
+    })
+
+    // If enabling notifications and permission is not granted, request it
+    if (checked && notificationPermission !== "granted") {
+      if (typeof window === "undefined" || !("Notification" in window)) {
+        toast.error(translations("settings.notificationsNotSupported") || "Notifications are not supported in this browser")
+        return
+      }
+
+      setRequestingPermission(true)
+      try {
+        const permission = await Notification.requestPermission()
+        setNotificationPermission(permission)
+        
+        if (permission === "granted") {
+          toast.success(translations("settings.permissionGrantedDesc"))
+        } else if (permission === "denied") {
+          // Don't show error toast, just let the warning icon indicate it
+        }
+      } catch (error) {
+        console.error("Error requesting notification permission:", error)
+        toast.error(translations("settings.testNotificationFailed"))
+      } finally {
+        setRequestingPermission(false)
+      }
+    }
+  }
+
+  const handleRequestPermission = async () => {
+    if (notificationPermission === "denied") {
+      // Show dialog with instructions
+      setShowPermissionDeniedDialog(true)
+      return
+    }
+
+    // Request permission again
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error(translations("settings.notificationsNotSupported"))
+      return
+    }
+
+    setRequestingPermission(true)
+    try {
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission)
+      
+      if (permission === "granted") {
+        toast.success(translations("settings.permissionGrantedDesc"))
+        // Also enable notifications if they were disabled
+        setLocalPreferences({
+          ...localPreferences,
+          notifications_enabled: true,
+        })
+      } else if (permission === "denied") {
+        setShowPermissionDeniedDialog(true)
+      }
+    } catch (error) {
+      console.error("Error requesting notification permission:", error)
+      toast.error(translations("settings.testNotificationFailed"))
+    } finally {
+      setRequestingPermission(false)
+    }
+  }
+
+  const getBrowserInstructions = () => {
+    if (typeof window === "undefined") return null
+    
+    const userAgent = navigator.userAgent.toLowerCase()
+    
+    if (userAgent.includes("chrome") || userAgent.includes("edge")) {
+      return (
+        <ol className="list-decimal pl-5 space-y-1">
+          <li>{translations("settings.instructionChrome1")}</li>
+          <li>{translations("settings.instructionChrome2")}</li>
+          <li>{translations("settings.instructionChrome3")}</li>
+        </ol>
+      )
+    } else if (userAgent.includes("firefox")) {
+      return (
+        <ol className="list-decimal pl-5 space-y-1">
+          <li>{translations("settings.instructionFirefox1")}</li>
+          <li>{translations("settings.instructionFirefox2")}</li>
+          <li>{translations("settings.instructionFirefox3")}</li>
+        </ol>
+      )
+    } else if (userAgent.includes("safari")) {
+      return (
+        <ol className="list-decimal pl-5 space-y-1">
+          <li>{translations("settings.instructionSafari1")}</li>
+          <li>{translations("settings.instructionSafari2")}</li>
+          <li>{translations("settings.instructionSafari3")}</li>
+        </ol>
+      )
+    } else {
+      return (
+        <p>{translations("settings.instructionGeneric")}</p>
+      )
+    }
+  }
 
   // Check if there are unsaved changes
   const hasChanges = () => {
@@ -301,40 +430,65 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     </div>
   )
 
-  const renderNotificationsSettings = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-sm font-medium mb-4">{translations("settings.notificationPreferences")}</h3>
-        <div className="space-y-4">
-          <div className="flex items-center space-x-3">
-            <Checkbox
-              id="notifications-enabled"
-              checked={localPreferences.notifications_enabled ?? true}
-              onCheckedChange={(checked) =>
-                setLocalPreferences({
-                  ...localPreferences,
-                  notifications_enabled: checked as boolean,
-                })
-              }
-            />
-            <div className="flex-1">
-              <Label
-                htmlFor="notifications-enabled"
-                className="text-sm font-normal cursor-pointer"
-              >
-                {translations("settings.enableNotifications")}
-              </Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                {translations("settings.notificationsDescription")}
-              </p>
+  const renderNotificationsSettings = () => {
+    const needsPermission = notificationPermission !== "granted"
+    const permissionDenied = notificationPermission === "denied"
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-sm font-medium mb-4">{translations("settings.notificationPreferences")}</h3>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="notifications-enabled"
+                checked={localPreferences.notifications_enabled ?? true}
+                onCheckedChange={handleNotificationsToggle}
+                disabled={requestingPermission}
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Label
+                    htmlFor="notifications-enabled"
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    {translations("settings.enableNotifications")}
+                  </Label>
+                  {needsPermission && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={handleRequestPermission}
+                          disabled={requestingPermission}
+                          className="inline-flex items-center justify-center rounded-sm p-0.5 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                          aria-label={permissionDenied 
+                            ? translations("settings.clickToViewInstructions") 
+                            : translations("settings.clickToRequestPermission")}
+                        >
+                          <IconAlertTriangle 
+                            className="h-4 w-4 text-yellow-600 dark:text-yellow-400 cursor-pointer" 
+                          />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {permissionDenied 
+                          ? translations("settings.clickToViewInstructions") 
+                          : translations("settings.clickToRequestPermission")}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {translations("settings.notificationsDescription")}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* User guide section removed as requested */}
-    </div>
-  )
+    )
+  }
 
   const renderContent = () => {
     switch (selectedCategory) {
@@ -462,6 +616,31 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             className="w-full sm:w-auto"
           >
             {saving ? translations("common.saving") : translations("common.saveChanges")}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Permission Denied Dialog */}
+    <Dialog open={showPermissionDeniedDialog} onOpenChange={setShowPermissionDeniedDialog}>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <DialogHeader className="px-4 pt-4 pb-2">
+          <DialogTitle>{translations("settings.permissionDeniedTitle")}</DialogTitle>
+          <DialogDescription>
+            {translations("settings.permissionDeniedDialogDescription")}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="px-4 pb-2">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{translations("settings.howToEnableNotifications")}</p>
+            <div className="text-sm text-muted-foreground">
+              {getBrowserInstructions()}
+            </div>
+          </div>
+        </div>
+        <div className="px-4 pb-4 pt-2 flex justify-end">
+          <Button onClick={() => setShowPermissionDeniedDialog(false)}>
+            {translations("common.close")}
           </Button>
         </div>
       </DialogContent>
