@@ -1,13 +1,11 @@
 "use client"
 
 import {
-  IconCreditCard,
   IconDotsVertical,
   IconHelp,
   IconLogout,
   IconNotification,
   IconSettings,
-  IconUserCircle,
 } from "@tabler/icons-react"
 
 import {
@@ -87,14 +85,6 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <IconUserCircle />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconCreditCard />
-                Billing
-              </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconNotification />
                 Notifications
