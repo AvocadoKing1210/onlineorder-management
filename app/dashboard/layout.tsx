@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { isAuthenticated, getUserGroups } from '@/lib/auth'
+import { Toaster } from '@/components/ui/sonner'
+import { PreferencesProvider } from '@/lib/preferences-context'
 
 export default function DashboardLayout({
   children,
@@ -35,7 +37,12 @@ export default function DashboardLayout({
   }, [router])
 
   if (!ready) return null
-  return <>{children}</>
+  return (
+    <PreferencesProvider>
+      {children}
+      <Toaster />
+    </PreferencesProvider>
+  )
 }
 
 
