@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { isAuthenticated, getUserGroups } from '@/lib/auth'
 import { Toaster } from '@/components/ui/sonner'
+import { ThemeProvider } from 'next-themes'
 import { PreferencesProvider } from '@/lib/preferences-context'
 
 export default function DashboardLayout({
@@ -38,10 +39,12 @@ export default function DashboardLayout({
 
   if (!ready) return null
   return (
-    <PreferencesProvider>
-      {children}
-      <Toaster />
-    </PreferencesProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <PreferencesProvider>
+        {children}
+        <Toaster />
+      </PreferencesProvider>
+    </ThemeProvider>
   )
 }
 

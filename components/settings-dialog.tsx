@@ -31,6 +31,7 @@ import {
 import { usePreferences } from "@/lib/preferences-context"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useTheme } from "next-themes"
 
 interface SettingsDialogProps {
   open: boolean
@@ -98,6 +99,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       user_guide_completed: preferences.user_guide_completed || false,
     } : defaultPreferences
   )
+  const { setTheme } = useTheme()
 
   // Update local and original preferences when context preferences change
   useEffect(() => {
@@ -177,6 +179,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   }
 
   const handleConfirmDiscard = () => {
+    // Revert theme to original when discarding
+    setTheme(originalPreferences.theme)
     setLocalPreferences(originalPreferences)
     onOpenChange(false)
     setShowConfirmDialog(false)
@@ -229,12 +233,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <Label htmlFor="theme">Theme</Label>
             <Select
               value={localPreferences.theme || "system"}
-              onValueChange={(value: "light" | "dark" | "system") =>
+              onValueChange={(value: "light" | "dark" | "system") => {
+                // Apply theme immediately when user selects it
+                setTheme(value)
                 setLocalPreferences({
                   ...localPreferences,
                   theme: value,
                 })
-              }
+              }}
             >
               <SelectTrigger id="theme" className="w-full sm:w-[300px]">
                 <SelectValue placeholder="Select theme" />

@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react"
+import { useTheme } from "next-themes"
 import {
   getManagementPreferences,
   type ManagementPreference,
@@ -21,6 +22,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     null
   )
   const [loading, setLoading] = useState(true)
+  const { setTheme } = useTheme()
 
   const loadPreferences = async () => {
     try {
@@ -33,10 +35,20 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const [themeApplied, setThemeApplied] = useState(false)
+
   useEffect(() => {
     // Silent background load on mount
     loadPreferences()
   }, [])
+
+  // Apply theme only on initial load (not when preferences change later)
+  useEffect(() => {
+    if (preferences?.theme && !themeApplied) {
+      setTheme(preferences.theme as any)
+      setThemeApplied(true)
+    }
+  }, [preferences, setTheme, themeApplied])
 
   return (
     <PreferencesContext.Provider
