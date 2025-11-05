@@ -1,13 +1,11 @@
 "use client"
 
 import {
-  IconCreditCard,
   IconDotsVertical,
   IconHelp,
   IconLogout,
   IconNotification,
   IconSettings,
-  IconUserCircle,
 } from "@tabler/icons-react"
 
 import {
@@ -15,6 +13,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import { logout } from "@/lib/auth"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,14 +86,6 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <IconUserCircle />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconCreditCard />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
                 <IconNotification />
                 Notifications
               </DropdownMenuItem>
@@ -111,7 +102,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => logout()}>
               <IconLogout />
               Log out
             </DropdownMenuItem>

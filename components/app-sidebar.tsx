@@ -4,7 +4,8 @@ import * as React from "react"
 import { IconSearch } from "@tabler/icons-react"
 import { Building2 } from "lucide-react"
 import { navigationData } from "@/data/navigation"
-import { userData } from "@/data/user"
+import { useEffect, useState } from "react"
+import { getAppUserProfile, type AppUserProfile } from "@/lib/auth"
 import { CommandPalette } from "@/components/command-palette"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -20,6 +21,17 @@ import {
 } from "@/components/ui/sidebar"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [user, setUser] = useState<AppUserProfile | null>(null)
+  useEffect(() => {
+    let mounted = true
+    getAppUserProfile().then((u) => {
+      if (!mounted) return
+      setUser(u)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -44,7 +56,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navigationData} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={userData} />
+        {user && (
+          <NavUser
+            user={{
+              name: user.name,
+              email: user.email,
+              avatar: user.avatar || "/avatars/shadcn.jpg",
+            }}
+          />
+        )}
       </SidebarFooter>
     </Sidebar>
   )
