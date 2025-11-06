@@ -8,9 +8,10 @@ import {
   IconQrcode,
   IconStar,
   IconBox,
+  IconDotsCircleHorizontal,
   type Icon,
 } from "@tabler/icons-react"
-import { SquareMenu, Settings2, ClipboardList } from "lucide-react"
+import { SquareMenu, ClipboardList } from "lucide-react"
 
 export type NavItem = {
   title: string
@@ -81,7 +82,7 @@ export const navigationData: (NavItem | NavSection)[] = [
           {
             title: "Modifiers",
             url: "/menu/modifiers",
-            icon: Settings2,
+            icon: IconDotsCircleHorizontal,
             tooltip: "Configure item modifiers and options",
           },
         ],

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { IconPlus, IconFolder, IconCircleDot } from '@tabler/icons-react'
+import { IconPlus, IconFolder, IconDotsCircleHorizontal } from '@tabler/icons-react'
 import { useTranslation } from '@/components/i18n-text'
 import { toast } from 'sonner'
 import { ModifierOptionDialog } from '@/components/menu/modifier-option-dialog'
@@ -306,7 +306,7 @@ export default function ModifiersPage() {
               {t('menu.modifiers.groups.createGroup')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleCreateOption}>
-              <IconCircleDot className="mr-2 h-4 w-4" />
+              <IconDotsCircleHorizontal className="mr-2 h-4 w-4" />
               {t('menu.modifiers.options.createOption')}
             </DropdownMenuItem>
           </DropdownMenuContent>

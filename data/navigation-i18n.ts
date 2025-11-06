@@ -9,7 +9,7 @@ import {
   IconStar,
   IconBox,
   IconSettings,
-  IconCircleDot,
+  IconDotsCircleHorizontal,
   type Icon,
 } from "@tabler/icons-react"
 import { SquareMenu, Settings2, ClipboardList } from "lucide-react"
@@ -68,7 +68,7 @@ export function getNavigationData(locale: Locale): (NavItem | NavSection)[] {
             {
               title: translations("navigation.modifiers"),
               url: "/menu/modifiers",
-              icon: IconCircleDot,
+              icon: IconDotsCircleHorizontal,
               tooltip: translations("navigation.modifiersTooltip"),
             },
           ],
