@@ -76,6 +76,7 @@ import {
 } from '@/components/ui/table'
 import { useTranslation } from '@/components/i18n-text'
 import { type MenuCategory } from '@/lib/api/menu-categories'
+import { cn } from '@/lib/utils'
 
 interface MenuCategoryTableProps {
   data: MenuCategory[]
@@ -114,7 +115,6 @@ export function MenuCategoryTable({
   isLoading = false,
 }: MenuCategoryTableProps) {
   const { t } = useTranslation()
-  const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -146,33 +146,6 @@ export function MenuCategoryTable({
         id: 'drag',
         header: () => null,
         cell: ({ row }) => <DragHandle id={row.original.id} />,
-        enableHiding: false,
-        size: 40,
-      },
-      {
-        id: 'select',
-        header: ({ table }) => (
-          <div className="flex items-center justify-center">
-            <Checkbox
-              checked={
-                table.getIsAllPageRowsSelected() ||
-                (table.getIsSomePageRowsSelected() && 'indeterminate')
-              }
-              onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-              aria-label="Select all"
-            />
-          </div>
-        ),
-        cell: ({ row }) => (
-          <div className="flex items-center justify-center">
-            <Checkbox
-              checked={row.getIsSelected()}
-              onCheckedChange={(value) => row.toggleSelected(!!value)}
-              aria-label="Select row"
-            />
-          </div>
-        ),
-        enableSorting: false,
         enableHiding: false,
         size: 40,
       },
@@ -268,13 +241,10 @@ export function MenuCategoryTable({
     state: {
       sorting,
       columnVisibility,
-      rowSelection,
       columnFilters,
       pagination,
     },
     getRowId: (row) => row.id,
-    enableRowSelection: true,
-    onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
@@ -302,7 +272,7 @@ export function MenuCategoryTable({
     }
   }
 
-  function DraggableRow({ row }: { row: Row<MenuCategory> }) {
+  function DraggableRow({ row, isLastRow }: { row: Row<MenuCategory>; isLastRow: boolean }) {
     const { transform, transition, setNodeRef, isDragging } = useSortable({
       id: row.original.id,
     })
@@ -318,9 +288,22 @@ export function MenuCategoryTable({
           transition: transition,
         }}
       >
-        {row.getVisibleCells().map((cell) => (
-          <TableCell key={cell.id}>
+        {row.getVisibleCells().map((cell, cellIndex) => (
+          <TableCell 
+            key={cell.id} 
+            className={cn(
+              "relative",
+              cellIndex < row.getVisibleCells().length - 1 && "pr-0"
+            )}
+          >
+            <div className="flex items-center h-full">
+              <div className="flex-1">
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </div>
+              {cellIndex < row.getVisibleCells().length - 1 && (
+                <div className="h-6 w-[1px] bg-border/60 mx-3 shrink-0 my-2" />
+              )}
+            </div>
           </TableCell>
         ))}
       </TableRow>
@@ -399,7 +382,7 @@ export function MenuCategoryTable({
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
+                <TableRow className="border-b">
                   <TableCell colSpan={columns.length} className="h-24 text-center">
                     {t('menu.categories.loading')}
                   </TableCell>
@@ -409,12 +392,16 @@ export function MenuCategoryTable({
                   items={dataIds}
                   strategy={verticalListSortingStrategy}
                 >
-                  {table.getRowModel().rows.map((row) => (
-                    <DraggableRow key={row.id} row={row} />
+                  {table.getRowModel().rows.map((row, index) => (
+                    <DraggableRow 
+                      key={row.id} 
+                      row={row} 
+                      isLastRow={index === table.getRowModel().rows.length - 1}
+                    />
                   ))}
                 </SortableContext>
               ) : (
-                <TableRow>
+                <TableRow className="border-b">
                   <TableCell colSpan={columns.length} className="h-24 text-center">
                     {t('common.noResults')}
                   </TableCell>
@@ -426,11 +413,7 @@ export function MenuCategoryTable({
       </div>
 
       <div className="flex items-center justify-between px-4">
-        <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-          {table.getFilteredSelectedRowModel().rows.length} of{' '}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
-        </div>
-        <div className="flex w-full items-center gap-8 lg:w-fit">
+        <div className="flex w-full items-center gap-8 lg:w-fit lg:ml-auto">
           <div className="hidden items-center gap-2 lg:flex">
             <Label htmlFor="rows-per-page" className="text-sm font-medium">
               Rows per page

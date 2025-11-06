@@ -1,0 +1,295 @@
+'use client'
+
+import { getSupabaseClient } from '@/lib/auth'
+
+export interface MenuItem {
+  id: string
+  category_id: string
+  name: string
+  description: string | null
+  price: string // NUMERIC(12, 2) returns as string
+  image_url: string | null
+  video_ref: string | null
+  position: number
+  visible: boolean
+  dietary_tags: string[] | null
+  availability_notes: string | null
+  created_at: string
+  updated_at: string
+  // Joined category data
+  category?: {
+    id: string
+    name: string
+  }
+}
+
+export interface MenuItemWithCategory extends MenuItem {
+  category: {
+    id: string
+    name: string
+  }
+}
+
+export interface CreateMenuItemData {
+  category_id: string
+  name: string
+  description?: string | null
+  price: number
+  image_url?: string | null
+  video_ref?: string | null
+  position?: number
+  visible?: boolean
+  dietary_tags?: string[] | null
+  availability_notes?: string | null
+}
+
+export interface UpdateMenuItemData {
+  category_id?: string
+  name?: string
+  description?: string | null
+  price?: number
+  image_url?: string | null
+  video_ref?: string | null
+  position?: number
+  visible?: boolean
+  dietary_tags?: string[] | null
+  availability_notes?: string | null
+}
+
+export interface MenuItemFilters {
+  category_id?: string
+  visible?: boolean
+  search?: string
+}
+
+/**
+ * Fetch all menu items with optional filters
+ * Includes category information via join
+ */
+export async function getMenuItems(
+  filters?: MenuItemFilters
+): Promise<MenuItemWithCategory[]> {
+  const supabase = await getSupabaseClient()
+  
+  let query = supabase
+    .from('menu_item')
+    .select(`
+      *,
+      menu_category(id, name)
+    `)
+    .order('category_id', { ascending: true })
+    .order('position', { ascending: true })
+
+  if (filters?.category_id) {
+    query = query.eq('category_id', filters.category_id)
+  }
+
+  if (filters?.visible !== undefined) {
+    query = query.eq('visible', filters.visible)
+  }
+
+  if (filters?.search) {
+    query = query.or(
+      `name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
+    )
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    throw new Error(`Failed to fetch menu items: ${error.message}`)
+  }
+
+  return (data || []).map((item: any) => ({
+    ...item,
+    category: Array.isArray(item.menu_category) 
+      ? item.menu_category[0] 
+      : item.menu_category,
+  })) as MenuItemWithCategory[]
+}
+
+/**
+ * Fetch a single menu item by ID with category information
+ */
+export async function getMenuItemById(
+  id: string
+): Promise<MenuItemWithCategory | null> {
+  const supabase = await getSupabaseClient()
+  const { data, error } = await supabase
+    .from('menu_item')
+    .select(`
+      *,
+      menu_category(id, name)
+    `)
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null // Not found
+    }
+    throw new Error(`Failed to fetch menu item: ${error.message}`)
+  }
+
+  return {
+    ...data,
+    category: Array.isArray(data.menu_category) 
+      ? data.menu_category[0] 
+      : data.menu_category,
+  } as MenuItemWithCategory
+}
+
+/**
+ * Create a new menu item
+ * Position is automatically calculated to be the last position within the category
+ */
+export async function createMenuItem(
+  data: CreateMenuItemData
+): Promise<MenuItem> {
+  const supabase = await getSupabaseClient()
+  
+  // Get the next position automatically within the category
+  // Position is always auto-calculated, never set manually
+  const nextPosition = await getNextPosition(data.category_id)
+  
+  // Remove position from data if it exists (shouldn't be set manually)
+  const { position: _, ...dataWithoutPosition } = data
+  
+  const { data: item, error } = await supabase
+    .from('menu_item')
+    .insert([
+      {
+        ...dataWithoutPosition,
+        position: nextPosition,
+        visible: data.visible ?? true,
+      },
+    ])
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to create menu item: ${error.message}`)
+  }
+
+  if (!item) {
+    throw new Error('Failed to create menu item: No data returned')
+  }
+
+  return item
+}
+
+/**
+ * Update a menu item
+ */
+export async function updateMenuItem(
+  id: string,
+  data: UpdateMenuItemData
+): Promise<MenuItem> {
+  const supabase = await getSupabaseClient()
+  const { data: item, error } = await supabase
+    .from('menu_item')
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to update menu item: ${error.message}`)
+  }
+
+  if (!item) {
+    throw new Error('Failed to update menu item: No data returned')
+  }
+
+  return item
+}
+
+/**
+ * Delete a menu item
+ */
+export async function deleteMenuItem(id: string): Promise<void> {
+  const supabase = await getSupabaseClient()
+  const { error } = await supabase.from('menu_item').delete().eq('id', id)
+
+  if (error) {
+    throw new Error(`Failed to delete menu item: ${error.message}`)
+  }
+}
+
+/**
+ * Bulk update menu items
+ */
+export async function bulkUpdateItems(
+  ids: string[],
+  updates: UpdateMenuItemData
+): Promise<void> {
+  const supabase = await getSupabaseClient()
+  const { error } = await supabase
+    .from('menu_item')
+    .update(updates)
+    .in('id', ids)
+
+  if (error) {
+    throw new Error(`Failed to bulk update menu items: ${error.message}`)
+  }
+}
+
+/**
+ * Get the next available position for a new item within a category
+ */
+export async function getNextPosition(categoryId: string): Promise<number> {
+  const supabase = await getSupabaseClient()
+  const { data, error } = await supabase
+    .from('menu_item')
+    .select('position')
+    .eq('category_id', categoryId)
+    .order('position', { ascending: false })
+    .limit(1)
+
+  if (error) {
+    throw new Error(`Failed to get next position: ${error.message}`)
+  }
+
+  if (!data || data.length === 0) return 0
+  return (data[0].position ?? -1) + 1
+}
+
+/**
+ * Reorder menu items within a category by updating their positions
+ * Uses a two-phase approach to avoid unique constraint violations
+ * @param categoryId The category ID to reorder items within
+ * @param itemIds Array of item IDs in the desired order (must all be in the same category)
+ */
+export async function reorderItems(categoryId: string, itemIds: string[]): Promise<void> {
+  const supabase = await getSupabaseClient()
+  const TEMP_OFFSET = 100000 // High value to avoid conflicts with any existing positions
+
+  // Phase 1: Move all items to temporary positions to free up the position space
+  for (let index = 0; index < itemIds.length; index++) {
+    const id = itemIds[index]
+    const { error } = await supabase
+      .from('menu_item')
+      .update({ position: TEMP_OFFSET + index })
+      .eq('id', id)
+      .eq('category_id', categoryId)
+
+    if (error) {
+      throw new Error(`Failed to reorder items (phase 1): ${error.message}`)
+    }
+  }
+
+  // Phase 2: Assign final positions
+  for (let index = 0; index < itemIds.length; index++) {
+    const id = itemIds[index]
+    const { error } = await supabase
+      .from('menu_item')
+      .update({ position: index })
+      .eq('id', id)
+      .eq('category_id', categoryId)
+
+    if (error) {
+      throw new Error(`Failed to reorder items (phase 2): ${error.message}`)
+    }
+  }
+}
+
