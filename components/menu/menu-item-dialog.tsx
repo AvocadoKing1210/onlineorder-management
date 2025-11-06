@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Kbd } from '@/components/ui/kbd'
 import { FileUpload } from '@/components/ui/file-upload'
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { useTranslation } from '@/components/i18n-text'
 import {
   type MenuItem,
@@ -31,6 +32,7 @@ import {
   type UpdateMenuItemData,
   getMenuItemModifierGroups,
   setMenuItemModifierGroups,
+  getAllDietaryTags,
 } from '@/lib/api/menu-items'
 import { type MenuCategory, getMenuCategories } from '@/lib/api/menu-categories'
 import { type ModifierGroup, getModifierGroups } from '@/lib/api/menu-modifier-groups'
@@ -158,6 +160,8 @@ export function MenuItemDialog({
   const [categories, setCategories] = useState<MenuCategory[]>([])
   const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([])
   const [selectedModifierGroupIds, setSelectedModifierGroupIds] = useState<string[]>([])
+  const [availableTags, setAvailableTags] = useState<string[]>([])
+  const [tagInputOpen, setTagInputOpen] = useState(false)
 
   // Category configuration
   const getCategories = (): CategoryConfig[] => [
@@ -232,20 +236,27 @@ export function MenuItemDialog({
   const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      handleAddTag()
+      if (newTagInput.trim() && !dietaryTags.includes(newTagInput.trim())) {
+        handleAddTag()
+        setTagInputOpen(false)
+      }
+    } else if (e.key === 'Escape') {
+      setTagInputOpen(false)
     }
   }
 
-  // Load categories and modifier groups
+  // Load categories, modifier groups, and available tags
   useEffect(() => {
     if (open) {
       Promise.all([
         getMenuCategories(),
         getModifierGroups(),
+        getAllDietaryTags(),
       ])
-        .then(([categoriesData, groupsData]) => {
+        .then(([categoriesData, groupsData, tagsData]) => {
           setCategories(categoriesData)
           setModifierGroups(groupsData)
+          setAvailableTags(tagsData)
         })
         .catch((error) => {
           console.error('Error loading data:', error)
@@ -583,19 +594,101 @@ export function MenuItemDialog({
           </DndContext>
         )}
 
-        {/* Add new tag input */}
-        <div className="flex gap-2">
-          <Input
-            id="newTagInput"
-            value={newTagInput}
-            onChange={(e) => setNewTagInput(e.target.value)}
-            onKeyDown={handleTagInputKeyDown}
-            placeholder={t('menu.items.dietaryTagsPlaceholder')}
-            className="flex-1"
-          />
+        {/* Add new tag input with autocomplete */}
+        <div className="flex gap-2 relative">
+          <div className="flex-1 relative">
+            <Input
+              id="newTagInput"
+              value={newTagInput}
+              onChange={(e) => {
+                setNewTagInput(e.target.value)
+                if (e.target.value.trim()) {
+                  setTagInputOpen(true)
+                } else {
+                  setTagInputOpen(false)
+                }
+              }}
+              onKeyDown={handleTagInputKeyDown}
+              onFocus={() => {
+                if (newTagInput.trim()) {
+                  setTagInputOpen(true)
+                }
+              }}
+              onBlur={() => {
+                // Delay closing to allow clicking on suggestions
+                setTimeout(() => {
+                  if (!document.activeElement?.closest('[role="option"]')) {
+                    setTagInputOpen(false)
+                  }
+                }, 200)
+              }}
+              placeholder={t('menu.items.dietaryTagsPlaceholder')}
+              className="w-full"
+            />
+            {tagInputOpen && newTagInput.trim() && (
+              <div 
+                className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[200px] overflow-auto"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <Command shouldFilter={false}>
+                  <CommandList>
+                    <CommandEmpty>
+                      {newTagInput.trim() 
+                        ? t('menu.items.noMatchingTags')
+                        : t('menu.items.startTypingToSearch')}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {availableTags
+                        .filter((tag) => {
+                          const searchTerm = newTagInput.trim().toLowerCase()
+                          if (!searchTerm) return false
+                          const tagLower = tag.toLowerCase()
+                          return tagLower.includes(searchTerm) && !dietaryTags.includes(tag)
+                        })
+                        .slice(0, 10)
+                        .map((tag) => (
+                          <CommandItem
+                            key={tag}
+                            value={tag}
+                            onSelect={() => {
+                              if (!dietaryTags.includes(tag)) {
+                                setDietaryTags([...dietaryTags, tag])
+                                setNewTagInput('')
+                                setTagInputOpen(false)
+                              }
+                            }}
+                            className="cursor-pointer"
+                          >
+                            {tag}
+                          </CommandItem>
+                        ))}
+                      {newTagInput.trim() && 
+                       !availableTags.some(tag => tag.toLowerCase() === newTagInput.trim().toLowerCase()) &&
+                       !dietaryTags.includes(newTagInput.trim()) && (
+                        <CommandItem
+                          value={newTagInput.trim()}
+                          onSelect={() => {
+                            handleAddTag()
+                            setTagInputOpen(false)
+                          }}
+                          className="text-muted-foreground cursor-pointer"
+                        >
+                          <IconPlus className="mr-2 h-4 w-4" />
+                          {t('menu.items.createTag', { tag: newTagInput.trim() })}
+                        </CommandItem>
+                      )}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </div>
+            )}
+          </div>
           <Button
             type="button"
-            onClick={handleAddTag}
+            onClick={() => {
+              handleAddTag()
+              setTagInputOpen(false)
+            }}
             disabled={!newTagInput.trim() || dietaryTags.includes(newTagInput.trim())}
             size="icon"
             variant="outline"

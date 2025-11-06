@@ -351,3 +351,34 @@ export async function setMenuItemModifierGroups(
   }
 }
 
+/**
+ * Get all unique dietary tags from all menu items
+ * Returns a sorted array of all unique dietary tags used across all menu items
+ */
+export async function getAllDietaryTags(): Promise<string[]> {
+  const supabase = await getSupabaseClient()
+  const { data, error } = await supabase
+    .from('menu_item')
+    .select('dietary_tags')
+    .not('dietary_tags', 'is', null)
+
+  if (error) {
+    throw new Error(`Failed to fetch dietary tags: ${error.message}`)
+  }
+
+  const tagSet = new Set<string>()
+  if (data) {
+    data.forEach((item: any) => {
+      if (item.dietary_tags && Array.isArray(item.dietary_tags)) {
+        item.dietary_tags.forEach((tag: string) => {
+          if (tag && typeof tag === 'string' && tag.trim()) {
+            tagSet.add(tag.trim())
+          }
+        })
+      }
+    })
+  }
+
+  return Array.from(tagSet).sort()
+}
+
