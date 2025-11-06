@@ -248,15 +248,26 @@ export default function ModifierOptionsPage() {
   }
 
   const handleReorder = async (groupId: string, reorderedOptions: ModifierOption[]) => {
+    // Optimistically update local state immediately
+    setOptions((prev) => {
+      const otherOptions = prev.filter((opt) => opt.modifier_group_id !== groupId)
+      // Update positions for reordered options
+      const updatedGroupOptions = reorderedOptions.map((opt, index) => ({
+        ...opt,
+        position: index,
+      }))
+      return [...otherOptions, ...updatedGroupOptions]
+    })
+
     try {
       const optionIds = reorderedOptions.map((o) => o.id)
       await reorderModifierOptions(groupId, optionIds)
       toast.success(t('menu.modifiers.options.reordered'))
-      await loadData()
+      // Don't reload - keep the optimistic update for smooth UX
     } catch (error: any) {
       console.error('Error reordering modifier options:', error)
       toast.error(error.message || t('menu.modifiers.options.reorderFailed'))
-      // Reload to reset to correct order
+      // Reload to reset to correct order on error
       await loadData()
     }
   }
