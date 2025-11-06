@@ -8,6 +8,8 @@ import {
   IconQrcode,
   IconStar,
   IconBox,
+  IconSettings,
+  IconCircleDot,
   type Icon,
 } from "@tabler/icons-react"
 import { SquareMenu, Settings2, ClipboardList } from "lucide-react"
@@ -64,10 +66,10 @@ export function getNavigationData(locale: Locale): (NavItem | NavSection)[] {
               tooltip: translations("navigation.itemsTooltip"),
             },
             {
-              title: translations("navigation.modifiers"),
-              url: "/menu/modifiers",
-              icon: Settings2,
-              tooltip: translations("navigation.modifiersTooltip"),
+              title: translations("navigation.modifierOptions"),
+              url: "/menu/modifiers/options",
+              icon: IconCircleDot,
+              tooltip: translations("navigation.modifierOptionsTooltip"),
             },
           ],
         },

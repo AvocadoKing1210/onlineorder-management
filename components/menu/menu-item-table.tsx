@@ -89,21 +89,52 @@ import { cn } from '@/lib/utils'
 
 interface TagsDisplayProps {
   tags: string[]
-  visibleTags: string[]
-  hiddenCount: number
 }
 
-function TagsDisplay({ tags, visibleTags, hiddenCount }: TagsDisplayProps) {
+function TagsDisplay({ tags }: TagsDisplayProps) {
+  const [maxVisible, setMaxVisible] = React.useState(2) // Default to medium
+  
+  React.useEffect(() => {
+    const updateMaxVisible = () => {
+      const width = window.innerWidth
+      if (width >= 1024) {
+        setMaxVisible(3) // Large screens: 3 tags
+      } else if (width >= 768) {
+        setMaxVisible(2) // Medium screens: 2 tags
+      } else {
+        setMaxVisible(0) // Mobile: 0 tags (handled below)
+      }
+    }
+    
+    updateMaxVisible()
+    window.addEventListener('resize', updateMaxVisible)
+    return () => window.removeEventListener('resize', updateMaxVisible)
+  }, [])
+  
+  const visibleTags = tags.slice(0, maxVisible)
+  const hiddenTags = tags.slice(maxVisible)
+  const hiddenCount = tags.length - maxVisible
   const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const isMobile = useIsMobile()
 
-  // On mobile: if >=1 tag, show "+n more" (don't show any tags)
-  // On desktop: show 2-3 tags before showing "+n more"
-  const shouldShowOnlyCount = isMobile && tags.length >= 1
+  // If there's only one tag, always show it directly
+  if (tags.length === 1) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        <Badge key={tags[0]} variant="secondary" className="text-xs">
+          {tags[0]}
+        </Badge>
+      </div>
+    )
+  }
+
+  // On mobile (< 768px): if >=2 tags, show "+n more" (don't show any tags)
+  // On medium/large screens: show visible tags with "+n more" if needed
+  const shouldShowOnlyCount = isMobile && tags.length >= 2
 
   if (shouldShowOnlyCount) {
-    // Mobile: just show "+n more" button
+    // Mobile: just show "+n more" button with all tags in dropdown
     return (
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
@@ -167,10 +198,10 @@ function TagsDisplay({ tags, visibleTags, hiddenCount }: TagsDisplayProps) {
         <DropdownMenuContent align="start" className="w-64 p-3">
           <div className="space-y-2">
             <div className="text-xs font-medium text-muted-foreground mb-2">
-              {t('menu.items.allTags')}
+              {t('menu.items.moreTags', { count: hiddenCount })}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => (
+              {hiddenTags.map((tag) => (
                 <Badge key={tag} variant="secondary" className="text-xs">
                   {tag}
                 </Badge>
@@ -301,20 +332,39 @@ export function MenuItemTable({
           const item = row.original
           const isDescriptionOpen = expandedDescriptions.has(item.id)
           
+          // Parse image_url - could be JSON array string or single URL string
+          const getImageUrl = (imageUrl: string | null): string | null => {
+            if (!imageUrl) return null
+            try {
+              const parsed = JSON.parse(imageUrl)
+              // If it's an array, return the first image
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed[0]
+              }
+              // If it's already a string URL, return it
+              return typeof parsed === 'string' ? parsed : imageUrl
+            } catch {
+              // Not JSON, treat as single URL string
+              return imageUrl
+            }
+          }
+          
+          const displayImageUrl = getImageUrl(item.image_url)
+          
           return (
-            <div className="flex items-center gap-3">
-              {item.image_url && (
+            <div className="flex items-center gap-3 min-w-0">
+              {displayImageUrl && (
                 <img
-                  src={item.image_url}
+                  src={displayImageUrl}
                   alt={item.name}
-                  className="h-10 w-10 rounded object-cover"
+                  className="h-10 w-10 rounded object-cover shrink-0"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none'
                   }}
                 />
               )}
-              <div className="flex items-center gap-2 flex-1">
-                <span className="font-medium">{item.name}</span>
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="font-medium truncate">{item.name}</span>
                 {item.description && (
                   <DropdownMenu
                     open={isDescriptionOpen}
@@ -335,7 +385,7 @@ export function MenuItemTable({
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            className="inline-flex items-center justify-center size-5 rounded hover:bg-muted transition-colors"
+                            className="inline-flex items-center justify-center size-5 rounded hover:bg-muted transition-colors shrink-0"
                             onClick={(e) => {
                               e.stopPropagation()
                             }}
@@ -391,13 +441,8 @@ export function MenuItemTable({
           const tags = row.original.dietary_tags
           if (!tags || tags.length === 0) return '-'
           
-          // Desktop: show 3 tags, mobile: show 0 tags (handled in TagsDisplay)
-          const MAX_VISIBLE = 3
-          const visibleTags = tags.slice(0, MAX_VISIBLE)
-          const hiddenCount = tags.length - MAX_VISIBLE
-          
           return (
-            <TagsDisplay tags={tags} visibleTags={visibleTags} hiddenCount={hiddenCount} />
+            <TagsDisplay tags={tags} />
           )
         },
       },
@@ -604,23 +649,23 @@ export function MenuItemTable({
   return (
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 flex-1">
-          <Input
-            placeholder={t('common.search')}
-            value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
-            onChange={(event) => table.getColumn('name')?.setFilterValue(event.target.value)}
-            className="max-w-sm"
-          />
+        <Input
+          placeholder={t('common.search')}
+          value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
+          onChange={(event) => table.getColumn('name')?.setFilterValue(event.target.value)}
+          className="w-80"
+        />
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
-            className={hasActiveFilters ? 'border-primary' : ''}
+            className={cn(hasActiveFilters && 'border-primary')}
           >
-            <IconFilter className="h-4 w-4" />
+            <IconFilter className="h-4 w-4 shrink-0" />
             <span className="hidden lg:inline">{t('menu.items.filters')}</span>
             {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-2 h-5 min-w-5 rounded-full px-1.5">
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 shrink-0">
                 {[
                   selectedCategoryId ? 1 : 0,
                   selectedTags.length,
@@ -629,14 +674,12 @@ export function MenuItemTable({
               </Badge>
             )}
           </Button>
-        </div>
-        <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <IconLayoutColumns />
+                <IconLayoutColumns className="h-4 w-4 shrink-0" />
                 <span className="hidden lg:inline">Columns</span>
-                <IconChevronDown />
+                <IconChevronDown className="h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -664,9 +707,9 @@ export function MenuItemTable({
       </div>
 
       {showFilters && (
-        <div className="rounded-lg border bg-muted/50 p-4 space-y-4">
+        <div className="rounded-lg border bg-muted/50 p-4">
           {hasActiveFilters && (
-            <div className="flex justify-end">
+            <div className="flex justify-end mb-4">
               <Button
                 variant="ghost"
                 size="sm"
@@ -678,10 +721,10 @@ export function MenuItemTable({
               </Button>
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4">
             {/* Category Filter */}
             {onCategoryFilterChange && (
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-[200px] flex-shrink-0">
                 <Label className="text-xs">{t('menu.items.category')}</Label>
                 <Select
                   value={selectedCategoryId || 'all'}
@@ -706,7 +749,7 @@ export function MenuItemTable({
 
             {/* Dietary Tags Filter */}
             {onTagsFilterChange && availableTags.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-[200px] flex-shrink-0">
                 <Label className="text-xs">{t('menu.items.dietaryTags')}</Label>
                 <Select
                   value=""
@@ -749,7 +792,7 @@ export function MenuItemTable({
 
             {/* Visibility Filter */}
             {onVisibilityFilterChange && (
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-[200px] flex-shrink-0">
                 <Label className="text-xs">{t('menu.items.visibility')}</Label>
                 <Select
                   value={selectedVisibility}
