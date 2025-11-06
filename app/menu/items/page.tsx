@@ -131,14 +131,16 @@ export default function MenuItemsPage() {
 
   const handleSave = async (data: CreateMenuItemData | UpdateMenuItemData) => {
     try {
+      let savedItem: MenuItemWithCategory
       if (editingItem) {
-        await updateMenuItem(editingItem.id, data as UpdateMenuItemData)
+        savedItem = await updateMenuItem(editingItem.id, data as UpdateMenuItemData)
         toast.success(t('menu.items.updated'))
       } else {
-        await createMenuItem(data as CreateMenuItemData)
+        savedItem = await createMenuItem(data as CreateMenuItemData)
         toast.success(t('menu.items.created'))
       }
       await loadItems()
+      return savedItem
     } catch (error: any) {
       console.error('Error saving item:', error)
       toast.error(

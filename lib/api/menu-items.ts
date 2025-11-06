@@ -293,3 +293,61 @@ export async function reorderItems(categoryId: string, itemIds: string[]): Promi
   }
 }
 
+/**
+ * Get modifier groups associated with a menu item
+ */
+export async function getMenuItemModifierGroups(
+  menuItemId: string
+): Promise<string[]> {
+  const supabase = await getSupabaseClient()
+  const { data, error } = await supabase
+    .from('menu_item_modifier_group')
+    .select('modifier_group_id')
+    .eq('menu_item_id', menuItemId)
+    .order('position', { ascending: true })
+
+  if (error) {
+    throw new Error(`Failed to fetch modifier groups: ${error.message}`)
+  }
+
+  return (data || []).map((row: any) => row.modifier_group_id)
+}
+
+/**
+ * Set modifier groups for a menu item
+ * Replaces all existing associations with the new ones
+ */
+export async function setMenuItemModifierGroups(
+  menuItemId: string,
+  modifierGroupIds: string[]
+): Promise<void> {
+  const supabase = await getSupabaseClient()
+
+  // First, delete all existing associations
+  const { error: deleteError } = await supabase
+    .from('menu_item_modifier_group')
+    .delete()
+    .eq('menu_item_id', menuItemId)
+
+  if (deleteError) {
+    throw new Error(`Failed to delete existing associations: ${deleteError.message}`)
+  }
+
+  // Then, insert new associations with positions
+  if (modifierGroupIds.length > 0) {
+    const associations = modifierGroupIds.map((groupId, index) => ({
+      menu_item_id: menuItemId,
+      modifier_group_id: groupId,
+      position: index,
+    }))
+
+    const { error: insertError } = await supabase
+      .from('menu_item_modifier_group')
+      .insert(associations)
+
+    if (insertError) {
+      throw new Error(`Failed to create associations: ${insertError.message}`)
+    }
+  }
+}
+

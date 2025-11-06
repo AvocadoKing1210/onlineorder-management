@@ -29,8 +29,11 @@ import {
   type MenuItem,
   type CreateMenuItemData,
   type UpdateMenuItemData,
+  getMenuItemModifierGroups,
+  setMenuItemModifierGroups,
 } from '@/lib/api/menu-items'
 import { type MenuCategory, getMenuCategories } from '@/lib/api/menu-categories'
+import { type ModifierGroup, getModifierGroups } from '@/lib/api/menu-modifier-groups'
 import { cn } from '@/lib/utils'
 import {
   DndContext,
@@ -50,7 +53,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { IconGripVertical, IconX, IconPlus, IconSettings, IconPhoto, IconVideo, IconTags, IconClock } from '@tabler/icons-react'
+import { IconGripVertical, IconX, IconPlus, IconSettings, IconPhoto, IconVideo, IconTags, IconClock, IconDotsCircleHorizontal } from '@tabler/icons-react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Separator } from '@/components/ui/separator'
 
@@ -58,7 +61,7 @@ interface MenuItemDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   item?: MenuItem | null
-  onSave: (data: CreateMenuItemData | UpdateMenuItemData) => Promise<void>
+  onSave: (data: CreateMenuItemData | UpdateMenuItemData) => Promise<MenuItem | void>
 }
 
 interface SortableTagProps {
@@ -117,7 +120,7 @@ function SortableTag({ tag, onRemove }: SortableTagProps) {
   )
 }
 
-type MenuItemCategory = 'general' | 'image' | 'video' | 'tags' | 'availability'
+type MenuItemCategory = 'general' | 'image' | 'video' | 'tags' | 'availability' | 'modifiers'
 
 interface CategoryConfig {
   id: MenuItemCategory
@@ -153,6 +156,8 @@ export function MenuItemDialog({
     category_id?: string
   }>({})
   const [categories, setCategories] = useState<MenuCategory[]>([])
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([])
+  const [selectedModifierGroupIds, setSelectedModifierGroupIds] = useState<string[]>([])
 
   // Category configuration
   const getCategories = (): CategoryConfig[] => [
@@ -180,6 +185,11 @@ export function MenuItemDialog({
       id: 'availability',
       label: t('menu.items.categories.availability'),
       icon: IconClock,
+    },
+    {
+      id: 'modifiers',
+      label: t('menu.items.categories.modifiers'),
+      icon: IconDotsCircleHorizontal,
     },
   ]
 
@@ -226,16 +236,35 @@ export function MenuItemDialog({
     }
   }
 
-  // Load categories
+  // Load categories and modifier groups
   useEffect(() => {
     if (open) {
-      getMenuCategories()
-        .then(setCategories)
+      Promise.all([
+        getMenuCategories(),
+        getModifierGroups(),
+      ])
+        .then(([categoriesData, groupsData]) => {
+          setCategories(categoriesData)
+          setModifierGroups(groupsData)
+        })
         .catch((error) => {
-          console.error('Error loading categories:', error)
+          console.error('Error loading data:', error)
         })
     }
   }, [open])
+
+  // Load associated modifier groups when editing
+  useEffect(() => {
+    if (open && item?.id) {
+      getMenuItemModifierGroups(item.id)
+        .then(setSelectedModifierGroupIds)
+        .catch((error) => {
+          console.error('Error loading modifier groups:', error)
+        })
+    } else if (open && !item) {
+      setSelectedModifierGroupIds([])
+    }
+  }, [open, item])
 
   // Reset form when dialog opens/closes or item changes
   useEffect(() => {
@@ -324,7 +353,16 @@ export function MenuItemDialog({
         visible,
       }
 
-      await onSave(data)
+      const savedItem = await onSave(data)
+      
+      // Save modifier group associations if we have an item ID
+      if (savedItem?.id || item?.id) {
+        const itemId = savedItem?.id || item?.id
+        if (itemId) {
+          await setMenuItemModifierGroups(itemId, selectedModifierGroupIds)
+        }
+      }
+      
       onOpenChange(false)
     } catch (error) {
       // Error handling is done in parent component
@@ -597,6 +635,81 @@ export function MenuItemDialog({
     </div>
   )
 
+  const renderModifiers = () => (
+    <div className="space-y-6">
+      <div className="grid gap-2.5">
+        <Label className="text-sm font-medium">
+          {t('menu.items.modifiers')}
+        </Label>
+        <p className="text-xs text-muted-foreground mb-4">
+          {t('menu.items.modifiersDescription')}
+        </p>
+        {modifierGroups.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-4 text-center border rounded-lg">
+            {t('menu.items.noModifierGroups')}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {modifierGroups.map((group) => (
+              <div
+                key={group.id}
+                className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+              >
+                <div className="pt-0.5">
+                  <Checkbox
+                    id={`modifier-group-${group.id}`}
+                    checked={selectedModifierGroupIds.includes(group.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedModifierGroupIds([...selectedModifierGroupIds, group.id])
+                      } else {
+                        setSelectedModifierGroupIds(
+                          selectedModifierGroupIds.filter((id) => id !== group.id)
+                        )
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Label
+                    htmlFor={`modifier-group-${group.id}`}
+                    className="text-sm font-medium leading-normal cursor-pointer"
+                  >
+                    {group.name}
+                  </Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {group.option_count || 0} {t('menu.items.options')}
+                    </Badge>
+                    {group.required && (
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {t('menu.items.required')}
+                      </Badge>
+                    )}
+                    {!group.visible && (
+                      <Badge variant="secondary" className="text-xs font-normal">
+                        {t('menu.items.hidden')}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {group.min_select === group.max_select
+                      ? group.min_select === 1
+                        ? t('menu.items.selectExactlyOne')
+                        : t('menu.items.selectExactly', { count: group.min_select })
+                      : group.min_select === 0
+                      ? t('menu.items.selectUpTo', { count: group.max_select })
+                      : t('menu.items.selectRange', { min: group.min_select, max: group.max_select })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
   const renderContent = () => {
     switch (selectedCategory) {
       case 'general':
@@ -609,6 +722,8 @@ export function MenuItemDialog({
         return renderTags()
       case 'availability':
         return renderAvailability()
+      case 'modifiers':
+        return renderModifiers()
       default:
         return null
     }
