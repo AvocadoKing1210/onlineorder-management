@@ -71,6 +71,16 @@ export function ModifierOptionDialog({
     price_delta?: string
   }>({})
   const [isSaving, setIsSaving] = useState(false)
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  
+  // Store original form values to detect changes
+  const [originalValues, setOriginalValues] = useState<{
+    modifier_group_id: string
+    name: string
+    price_delta: string
+    visible: boolean
+    available: boolean
+  } | null>(null)
 
   // Category configuration
   const getCategories = (): CategoryConfig[] => [
@@ -98,21 +108,86 @@ export function ModifierOptionDialog({
       setSelectedCategory('general')
 
       if (option) {
-        setModifierGroupId(option.modifier_group_id)
-        setName(option.name)
-        setPriceDelta(option.price_delta.toFixed(2))
-        setVisible(option.visible)
-        setAvailable(option.available)
+        const modifierGroupIdValue = option.modifier_group_id
+        const nameValue = option.name
+        const priceDeltaValue = option.price_delta.toFixed(2)
+        const visibleValue = option.visible
+        const availableValue = option.available
+        
+        setModifierGroupId(modifierGroupIdValue)
+        setName(nameValue)
+        setPriceDelta(priceDeltaValue)
+        setVisible(visibleValue)
+        setAvailable(availableValue)
+        
+        // Store original values for change detection
+        setOriginalValues({
+          modifier_group_id: modifierGroupIdValue,
+          name: nameValue,
+          price_delta: priceDeltaValue,
+          visible: visibleValue,
+          available: availableValue,
+        })
       } else {
         setModifierGroupId('')
         setName('')
         setPriceDelta('0.00')
         setVisible(true)
         setAvailable(true)
+        
+        // Store original values for new option (all empty/default)
+        setOriginalValues({
+          modifier_group_id: '',
+          name: '',
+          price_delta: '0.00',
+          visible: true,
+          available: true,
+        })
       }
       setErrors({})
+    } else {
+      // Reset when dialog closes
+      setOriginalValues(null)
+      setShowDiscardDialog(false)
     }
   }, [open, option])
+
+  // Check if form has unsaved changes
+  const hasUnsavedChanges = (): boolean => {
+    if (!originalValues) return false
+    
+    return (
+      modifierGroupId !== originalValues.modifier_group_id ||
+      name.trim() !== originalValues.name.trim() ||
+      priceDelta !== originalValues.price_delta ||
+      visible !== originalValues.visible ||
+      available !== originalValues.available
+    )
+  }
+
+  // Handle dialog close with unsaved changes check
+  const handleDialogClose = (newOpen: boolean) => {
+    if (!newOpen) {
+      if (hasUnsavedChanges()) {
+        setShowDiscardDialog(true)
+      } else {
+        onOpenChange(false)
+      }
+    } else {
+      onOpenChange(true)
+    }
+  }
+  
+  // Handle discard confirmation
+  const handleDiscard = () => {
+    setShowDiscardDialog(false)
+    onOpenChange(false)
+  }
+  
+  // Handle cancel discard (keep editing)
+  const handleKeepEditing = () => {
+    setShowDiscardDialog(false)
+  }
 
   const validate = (): boolean => {
     const newErrors: {
@@ -158,6 +233,16 @@ export function ModifierOptionDialog({
       }
 
       await onSave(data)
+      
+      // Update original values after successful save
+      setOriginalValues({
+        modifier_group_id: modifierGroupId,
+        name: name.trim(),
+        price_delta: priceDelta,
+        visible,
+        available,
+      })
+      
       onOpenChange(false)
     } catch (error) {
       // Error handling is done in parent component
@@ -378,8 +463,23 @@ export function ModifierOptionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[80vh] p-0 flex flex-col overflow-hidden sm:max-w-5xl max-w-[calc(100%-3rem)] sm:h-[72vh]">
+    <>
+    <Dialog open={open} onOpenChange={handleDialogClose}>
+      <DialogContent 
+        className="max-w-5xl h-[80vh] p-0 flex flex-col overflow-hidden sm:max-w-5xl max-w-[calc(100%-3rem)] sm:h-[72vh]"
+        onInteractOutside={(e) => {
+          if (hasUnsavedChanges()) {
+            e.preventDefault()
+            setShowDiscardDialog(true)
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (hasUnsavedChanges()) {
+            e.preventDefault()
+            setShowDiscardDialog(true)
+          }
+        }}
+      >
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b">
           <DialogTitle className="text-lg sm:text-xl">
             {isEditing ? t('menu.modifiers.options.editOption') : t('menu.modifiers.options.createOption')}
@@ -428,7 +528,7 @@ export function ModifierOptionDialog({
         <DialogFooter className="px-4 sm:px-6 py-3 sm:py-4 border-t">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleDialogClose(false)}
             disabled={isSaving}
             className="w-full sm:w-auto"
           >
@@ -440,6 +540,36 @@ export function ModifierOptionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    
+    {/* Discard Changes Confirmation Dialog */}
+    <Dialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <DialogHeader className="px-4 pt-4 pb-2">
+          <DialogTitle>{t('menu.modifiers.options.unsavedChanges')}</DialogTitle>
+          <DialogDescription>
+            {t('menu.modifiers.options.unsavedChangesDescription')}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="px-4 pb-4 pt-2 flex flex-col sm:flex-row justify-end gap-2">
+          <Button
+            onClick={handleDiscard}
+            disabled={isSaving}
+            variant="outline"
+            className="w-full sm:w-auto bg-background text-foreground border-border hover:bg-muted"
+          >
+            {t('menu.modifiers.options.discardChanges')}
+          </Button>
+          <Button
+            onClick={handleKeepEditing}
+            disabled={isSaving}
+            className="w-full sm:w-auto bg-foreground text-background hover:bg-foreground/90"
+          >
+            {t('menu.modifiers.options.keepEditing')}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 

@@ -162,6 +162,21 @@ export function MenuItemDialog({
   const [selectedModifierGroupIds, setSelectedModifierGroupIds] = useState<string[]>([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const [tagInputOpen, setTagInputOpen] = useState(false)
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  
+  // Store original form values to detect changes
+  const [originalValues, setOriginalValues] = useState<{
+    name: string
+    description: string
+    price: string
+    category_id: string
+    image_url: string
+    video_ref: string
+    dietary_tags: string[]
+    availability_notes: string
+    visible: boolean
+    modifier_group_ids: string[]
+  } | null>(null)
 
   // Category configuration
   const getCategories = (): CategoryConfig[] => [
@@ -268,14 +283,24 @@ export function MenuItemDialog({
   useEffect(() => {
     if (open && item?.id) {
       getMenuItemModifierGroups(item.id)
-        .then(setSelectedModifierGroupIds)
+        .then((ids) => {
+          setSelectedModifierGroupIds(ids)
+          // Update original values once modifier groups are loaded
+          setOriginalValues(prev => {
+            if (!prev) return null
+            return {
+              ...prev,
+              modifier_group_ids: ids,
+            }
+          })
+        })
         .catch((error) => {
           console.error('Error loading modifier groups:', error)
         })
     } else if (open && !item) {
       setSelectedModifierGroupIds([])
     }
-  }, [open, item])
+  }, [open, item?.id])
 
   // Reset form when dialog opens/closes or item changes
   useEffect(() => {
@@ -284,27 +309,50 @@ export function MenuItemDialog({
       setSelectedCategory('general')
       
       if (item) {
-        setName(item.name)
-        setDescription(item.description || '')
-        setPrice(item.price || '')
-        setCategoryId(item.category_id)
+        const nameValue = item.name
+        const descriptionValue = item.description || ''
+        const priceValue = item.price || ''
+        const categoryIdValue = item.category_id
+        let imageUrlValue = ''
         // Handle image_url - could be JSON array string or single URL string
         if (item.image_url) {
           try {
             const parsed = JSON.parse(item.image_url)
             // If it's an array, keep as JSON string; if single value, keep as string
-            setImageUrl(Array.isArray(parsed) ? item.image_url : item.image_url)
+            imageUrlValue = Array.isArray(parsed) ? item.image_url : item.image_url
           } catch {
             // Not JSON, treat as single URL string
-            setImageUrl(item.image_url)
+            imageUrlValue = item.image_url
           }
-        } else {
-          setImageUrl('')
         }
-        setVideoRef(item.video_ref || '')
-        setDietaryTags(item.dietary_tags || [])
-        setAvailabilityNotes(item.availability_notes || '')
-        setVisible(item.visible)
+        const videoRefValue = item.video_ref || ''
+        const dietaryTagsValue = item.dietary_tags || []
+        const availabilityNotesValue = item.availability_notes || ''
+        const visibleValue = item.visible
+        
+        setName(nameValue)
+        setDescription(descriptionValue)
+        setPrice(priceValue)
+        setCategoryId(categoryIdValue)
+        setImageUrl(imageUrlValue)
+        setVideoRef(videoRefValue)
+        setDietaryTags(dietaryTagsValue)
+        setAvailabilityNotes(availabilityNotesValue)
+        setVisible(visibleValue)
+        
+        // Store original values for change detection
+        setOriginalValues({
+          name: nameValue,
+          description: descriptionValue,
+          price: priceValue,
+          category_id: categoryIdValue,
+          image_url: imageUrlValue,
+          video_ref: videoRefValue,
+          dietary_tags: dietaryTagsValue,
+          availability_notes: availabilityNotesValue,
+          visible: visibleValue,
+          modifier_group_ids: [], // Will be set after loading
+        })
       } else {
         setName('')
         setDescription('')
@@ -316,10 +364,83 @@ export function MenuItemDialog({
         setNewTagInput('')
         setAvailabilityNotes('')
         setVisible(true)
+        
+        // Store original values for new item (all empty)
+        setOriginalValues({
+          name: '',
+          description: '',
+          price: '',
+          category_id: '',
+          image_url: '',
+          video_ref: '',
+          dietary_tags: [],
+          availability_notes: '',
+          visible: true,
+          modifier_group_ids: [],
+        })
       }
       setErrors({})
+    } else {
+      // Reset when dialog closes
+      setOriginalValues(null)
+      setShowDiscardDialog(false)
     }
   }, [open, item])
+
+  // Check if form has unsaved changes
+  const hasUnsavedChanges = (): boolean => {
+    if (!originalValues) return false
+    
+    // Compare arrays by converting to sorted strings
+    const arraysEqual = (a: string[], b: string[]): boolean => {
+      if (a.length !== b.length) return false
+      const sortedA = [...a].sort()
+      const sortedB = [...b].sort()
+      return sortedA.every((val, idx) => val === sortedB[idx])
+    }
+    
+    return (
+      name.trim() !== originalValues.name.trim() ||
+      (description || '').trim() !== originalValues.description.trim() ||
+      price !== originalValues.price ||
+      categoryId !== originalValues.category_id ||
+      imageUrl !== originalValues.image_url ||
+      videoRef !== originalValues.video_ref ||
+      !arraysEqual(dietaryTags, originalValues.dietary_tags) ||
+      (availabilityNotes || '').trim() !== originalValues.availability_notes.trim() ||
+      visible !== originalValues.visible ||
+      !arraysEqual(selectedModifierGroupIds, originalValues.modifier_group_ids)
+    )
+  }
+
+  // Handle dialog close with unsaved changes check
+  const handleDialogClose = (newOpen: boolean) => {
+    // When newOpen is false, user wants to close the dialog
+    if (!newOpen) {
+      if (hasUnsavedChanges()) {
+        // Prevent closing and show confirmation dialog
+        setShowDiscardDialog(true)
+        // Don't call onOpenChange(false) - keep dialog open
+      } else {
+        // No unsaved changes, close normally
+        onOpenChange(false)
+      }
+    } else {
+      // Dialog is opening
+      onOpenChange(true)
+    }
+  }
+  
+  // Handle discard confirmation
+  const handleDiscard = () => {
+    setShowDiscardDialog(false)
+    onOpenChange(false)
+  }
+  
+  // Handle cancel discard (keep editing)
+  const handleKeepEditing = () => {
+    setShowDiscardDialog(false)
+  }
 
   const validate = (): boolean => {
     const newErrors: {
@@ -373,6 +494,20 @@ export function MenuItemDialog({
           await setMenuItemModifierGroups(itemId, selectedModifierGroupIds)
         }
       }
+      
+      // Update original values after successful save
+      setOriginalValues({
+        name: name.trim(),
+        description: description.trim() || '',
+        price: price,
+        category_id: categoryId,
+        image_url: imageUrl,
+        video_ref: videoRef,
+        dietary_tags: dietaryTags,
+        availability_notes: availabilityNotes.trim() || '',
+        visible,
+        modifier_group_ids: selectedModifierGroupIds,
+      })
       
       onOpenChange(false)
     } catch (error) {
@@ -823,8 +958,23 @@ export function MenuItemDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[80vh] p-0 flex flex-col overflow-hidden sm:max-w-5xl max-w-[calc(100%-3rem)] sm:h-[72vh]">
+    <>
+    <Dialog open={open} onOpenChange={handleDialogClose}>
+      <DialogContent 
+        className="max-w-5xl h-[80vh] p-0 flex flex-col overflow-hidden sm:max-w-5xl max-w-[calc(100%-3rem)] sm:h-[72vh]"
+        onInteractOutside={(e) => {
+          if (hasUnsavedChanges()) {
+            e.preventDefault()
+            setShowDiscardDialog(true)
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (hasUnsavedChanges()) {
+            e.preventDefault()
+            setShowDiscardDialog(true)
+          }
+        }}
+      >
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b">
           <DialogTitle className="text-lg sm:text-xl">
             {isEditing ? t('menu.items.editItem') : t('menu.items.createItem')}
@@ -871,7 +1021,7 @@ export function MenuItemDialog({
         <DialogFooter className="px-4 sm:px-6 py-3 sm:py-4 border-t">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleDialogClose(false)}
             disabled={isSaving}
             className="w-full sm:w-auto"
           >
@@ -883,6 +1033,36 @@ export function MenuItemDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    
+    {/* Discard Changes Confirmation Dialog */}
+    <Dialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <DialogHeader className="px-4 pt-4 pb-2">
+          <DialogTitle>{t('menu.items.unsavedChanges')}</DialogTitle>
+          <DialogDescription>
+            {t('menu.items.unsavedChangesDescription')}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="px-4 pb-4 pt-2 flex flex-col sm:flex-row justify-end gap-2">
+          <Button
+            onClick={handleDiscard}
+            disabled={isSaving}
+            variant="outline"
+            className="w-full sm:w-auto bg-background text-foreground border-border hover:bg-muted"
+          >
+            {t('menu.items.discardChanges')}
+          </Button>
+          <Button
+            onClick={handleKeepEditing}
+            disabled={isSaving}
+            className="w-full sm:w-auto bg-foreground text-background hover:bg-foreground/90"
+          >
+            {t('menu.items.keepEditing')}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 

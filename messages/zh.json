@@ -183,6 +183,10 @@
       "selectExactly": "正好选择{{count}}个",
       "selectUpTo": "最多选择{{count}}个",
       "selectRange": "选择{{min}}-{{max}}个",
+      "unsavedChanges": "未保存的更改",
+      "unsavedChangesDescription": "您有未保存的更改。确定要放弃这些更改吗？",
+      "keepEditing": "继续编辑",
+      "discardChanges": "放弃更改",
       "deleteItem": "删除项目",
       "deleteConfirm": "您确定要删除此项目吗？",
       "deleteConfirmDescription": "此操作无法撤消。此项目将从所有订单中移除。",
@@ -326,7 +330,11 @@
         "categories": {
           "general": "常规",
           "options": "选项"
-        }
+        },
+        "unsavedChanges": "未保存的更改",
+        "unsavedChangesDescription": "您有未保存的更改。确定要放弃这些更改吗？",
+        "keepEditing": "继续编辑",
+        "discardChanges": "放弃更改"
       },
       "options": {
         "title": "修饰选项",
@@ -386,7 +394,11 @@
           "general": "常规",
           "pricing": "定价",
           "availability": "可用性"
-        }
+        },
+        "unsavedChanges": "未保存的更改",
+        "unsavedChangesDescription": "您有未保存的更改。确定要放弃这些更改吗？",
+        "keepEditing": "继续编辑",
+        "discardChanges": "放弃更改"
       }
     }
   }

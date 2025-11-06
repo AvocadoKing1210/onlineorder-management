@@ -183,6 +183,10 @@
       "selectExactly": "Select exactly {{count}}",
       "selectUpTo": "Select up to {{count}}",
       "selectRange": "Select {{min}}-{{max}}",
+      "unsavedChanges": "Unsaved Changes",
+      "unsavedChangesDescription": "You have unsaved changes. Are you sure you want to discard them?",
+      "keepEditing": "Keep Editing",
+      "discardChanges": "Discard Changes",
       "deleteItem": "Delete Item",
       "deleteConfirm": "Are you sure you want to delete this item?",
       "deleteConfirmDescription": "This action cannot be undone. This item will be removed from all orders.",
@@ -326,7 +330,11 @@
         "categories": {
           "general": "General",
           "options": "Options"
-        }
+        },
+        "unsavedChanges": "Unsaved Changes",
+        "unsavedChangesDescription": "You have unsaved changes. Are you sure you want to discard them?",
+        "keepEditing": "Keep Editing",
+        "discardChanges": "Discard Changes"
       },
       "options": {
         "title": "Modifier Options",
@@ -386,7 +394,11 @@
           "general": "General",
           "pricing": "Pricing",
           "availability": "Availability"
-        }
+        },
+        "unsavedChanges": "Unsaved Changes",
+        "unsavedChangesDescription": "You have unsaved changes. Are you sure you want to discard them?",
+        "keepEditing": "Keep Editing",
+        "discardChanges": "Discard Changes"
       }
     }
   }

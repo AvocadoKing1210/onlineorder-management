@@ -61,6 +61,16 @@ export function ModifierGroupDialog({
     max_select?: string
   }>({})
   const [isSaving, setIsSaving] = useState(false)
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  
+  // Store original form values to detect changes
+  const [originalValues, setOriginalValues] = useState<{
+    name: string
+    min_select: number
+    max_select: number
+    required: boolean
+    visible: boolean
+  } | null>(null)
 
   // Category configuration
   const getCategories = (): CategoryConfig[] => [
@@ -83,19 +93,47 @@ export function ModifierGroupDialog({
       setSelectedCategory('general')
 
       if (group) {
-        setName(group.name)
-        setMinSelect(group.min_select)
-        setMaxSelect(group.max_select)
-        setRequired(group.required)
-        setVisible(group.visible)
+        const nameValue = group.name
+        const minSelectValue = group.min_select
+        const maxSelectValue = group.max_select
+        const requiredValue = group.required
+        const visibleValue = group.visible
+        
+        setName(nameValue)
+        setMinSelect(minSelectValue)
+        setMaxSelect(maxSelectValue)
+        setRequired(requiredValue)
+        setVisible(visibleValue)
+        
+        // Store original values for change detection
+        setOriginalValues({
+          name: nameValue,
+          min_select: minSelectValue,
+          max_select: maxSelectValue,
+          required: requiredValue,
+          visible: visibleValue,
+        })
       } else {
         setName('')
         setMinSelect(0)
         setMaxSelect(1)
         setRequired(false)
         setVisible(true)
+        
+        // Store original values for new group (all empty/default)
+        setOriginalValues({
+          name: '',
+          min_select: 0,
+          max_select: 1,
+          required: false,
+          visible: true,
+        })
       }
       setErrors({})
+    } else {
+      // Reset when dialog closes
+      setOriginalValues(null)
+      setShowDiscardDialog(false)
     }
   }, [open, group])
 
@@ -108,6 +146,43 @@ export function ModifierGroupDialog({
       }
     }
   }, [required])
+
+  // Check if form has unsaved changes
+  const hasUnsavedChanges = (): boolean => {
+    if (!originalValues) return false
+    
+    return (
+      name.trim() !== originalValues.name.trim() ||
+      minSelect !== originalValues.min_select ||
+      maxSelect !== originalValues.max_select ||
+      required !== originalValues.required ||
+      visible !== originalValues.visible
+    )
+  }
+
+  // Handle dialog close with unsaved changes check
+  const handleDialogClose = (newOpen: boolean) => {
+    if (!newOpen) {
+      if (hasUnsavedChanges()) {
+        setShowDiscardDialog(true)
+      } else {
+        onOpenChange(false)
+      }
+    } else {
+      onOpenChange(true)
+    }
+  }
+  
+  // Handle discard confirmation
+  const handleDiscard = () => {
+    setShowDiscardDialog(false)
+    onOpenChange(false)
+  }
+  
+  // Handle cancel discard (keep editing)
+  const handleKeepEditing = () => {
+    setShowDiscardDialog(false)
+  }
 
   const validate = (): boolean => {
     const newErrors: {
@@ -152,6 +227,16 @@ export function ModifierGroupDialog({
       }
 
       await onSave(data)
+      
+      // Update original values after successful save
+      setOriginalValues({
+        name: name.trim(),
+        min_select: minSelect,
+        max_select: maxSelect,
+        required,
+        visible,
+      })
+      
       onOpenChange(false)
     } catch (error) {
       // Error handling is done in parent component
@@ -398,8 +483,23 @@ export function ModifierGroupDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[80vh] p-0 flex flex-col overflow-hidden sm:max-w-5xl max-w-[calc(100%-3rem)] sm:h-[72vh]">
+    <>
+    <Dialog open={open} onOpenChange={handleDialogClose}>
+      <DialogContent 
+        className="max-w-5xl h-[80vh] p-0 flex flex-col overflow-hidden sm:max-w-5xl max-w-[calc(100%-3rem)] sm:h-[72vh]"
+        onInteractOutside={(e) => {
+          if (hasUnsavedChanges()) {
+            e.preventDefault()
+            setShowDiscardDialog(true)
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (hasUnsavedChanges()) {
+            e.preventDefault()
+            setShowDiscardDialog(true)
+          }
+        }}
+      >
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b">
           <DialogTitle className="text-lg sm:text-xl">
             {isEditing ? t('menu.modifiers.groups.editGroup') : t('menu.modifiers.groups.createGroup')}
@@ -448,7 +548,7 @@ export function ModifierGroupDialog({
         <DialogFooter className="px-4 sm:px-6 py-3 sm:py-4 border-t">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleDialogClose(false)}
             disabled={isSaving}
             className="w-full sm:w-auto"
           >
@@ -460,6 +560,36 @@ export function ModifierGroupDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    
+    {/* Discard Changes Confirmation Dialog */}
+    <Dialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <DialogHeader className="px-4 pt-4 pb-2">
+          <DialogTitle>{t('menu.modifiers.groups.unsavedChanges')}</DialogTitle>
+          <DialogDescription>
+            {t('menu.modifiers.groups.unsavedChangesDescription')}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="px-4 pb-4 pt-2 flex flex-col sm:flex-row justify-end gap-2">
+          <Button
+            onClick={handleDiscard}
+            disabled={isSaving}
+            variant="outline"
+            className="w-full sm:w-auto bg-background text-foreground border-border hover:bg-muted"
+          >
+            {t('menu.modifiers.groups.discardChanges')}
+          </Button>
+          <Button
+            onClick={handleKeepEditing}
+            disabled={isSaving}
+            className="w-full sm:w-auto bg-foreground text-background hover:bg-foreground/90"
+          >
+            {t('menu.modifiers.groups.keepEditing')}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 
