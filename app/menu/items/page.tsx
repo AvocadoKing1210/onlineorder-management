@@ -201,7 +201,7 @@ export default function MenuItemsPage() {
         <div>
           <h1 className="text-2xl font-bold">{t('menu.items.title')}</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {t('menu.items.description')}
+            {t('menu.items.pageDescription')}
           </p>
         </div>
         <Button onClick={handleCreate}>

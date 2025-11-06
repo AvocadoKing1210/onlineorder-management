@@ -161,7 +161,7 @@
     },
     "items": {
       "title": "菜单项目",
-      "description": "管理您的菜单项目、定价和详细信息",
+      "pageDescription": "管理您的菜单项目、定价和详细信息",
       "createItem": "创建项目",
       "createItemDescription": "向菜单添加新项目",
       "editItem": "编辑项目",

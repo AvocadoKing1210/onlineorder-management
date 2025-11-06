@@ -161,7 +161,7 @@
     },
     "items": {
       "title": "Menu Items",
-      "description": "Manage your menu items, pricing, and details",
+      "pageDescription": "Manage your menu items, pricing, and details",
       "createItem": "Create Item",
       "createItemDescription": "Add a new item to your menu",
       "editItem": "Edit Item",

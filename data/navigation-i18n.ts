@@ -66,10 +66,10 @@ export function getNavigationData(locale: Locale): (NavItem | NavSection)[] {
               tooltip: translations("navigation.itemsTooltip"),
             },
             {
-              title: translations("navigation.modifierOptions"),
-              url: "/menu/modifiers/options",
+              title: translations("navigation.modifiers"),
+              url: "/menu/modifiers",
               icon: IconCircleDot,
-              tooltip: translations("navigation.modifierOptionsTooltip"),
+              tooltip: translations("navigation.modifiersTooltip"),
             },
           ],
         },

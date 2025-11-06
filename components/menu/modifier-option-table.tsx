@@ -235,11 +235,14 @@ export function ModifierOptionTable({
         cell: ({ row }) => {
           const option = row.original
           return (
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{option.name}</span>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="font-medium truncate">{option.name}</span>
+              </div>
             </div>
           )
         },
+        enableHiding: false,
       },
       {
         id: 'modifier_group',
@@ -622,18 +625,19 @@ export function ModifierOptionTable({
         onDragEnd={handleDragEnd}
         modifiers={[restrictToVerticalAxis]}
       >
-        <div className="rounded-md border overflow-x-auto">
+        <div className="overflow-x-auto rounded-lg border">
           <Table className="w-full min-w-full">
-            <TableHeader>
+            <TableHeader className="bg-muted sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
                     const isActionsColumn = header.column.id === 'actions'
                     return (
-                      <TableHead 
-                        key={header.id} 
+                      <TableHead
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                         className={cn(
-                          "h-12",
                           isActionsColumn && "sticky right-0 bg-background z-10 border-l border-border/50"
                         )}
                       >

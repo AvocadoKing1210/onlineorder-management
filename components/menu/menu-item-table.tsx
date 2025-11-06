@@ -613,24 +613,38 @@ export function MenuItemTable({
           !isLastRow && "border-b border-border/50"
         )}
       >
-        {row.getVisibleCells().map((cell, cellIndex) => (
-          <TableCell 
-            key={cell.id} 
-            className={cn(
-              "relative",
-              cellIndex < row.getVisibleCells().length - 1 && "pr-0"
-            )}
-          >
-            <div className="flex items-center h-full">
-              <div className="flex-1">
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </div>
-              {cellIndex < row.getVisibleCells().length - 1 && (
-                <div className="h-6 w-[1px] bg-border/60 mx-3 shrink-0 my-2" />
+        {row.getVisibleCells().map((cell, cellIndex) => {
+          const isActionsColumn = cell.column.id === 'actions'
+          const isLastCell = cellIndex === row.getVisibleCells().length - 1
+          return (
+            <TableCell 
+              key={cell.id} 
+              className={cn(
+                "relative",
+                !isLastCell && "pr-0",
+                isActionsColumn && "text-right sticky right-0 bg-background z-10 border-l border-border/50"
               )}
-            </div>
-          </TableCell>
-        ))}
+            >
+              <div className={cn(
+                "flex items-center h-full",
+                isActionsColumn && "justify-end"
+              )}>
+                {isActionsColumn ? (
+                  flexRender(cell.column.columnDef.cell, cell.getContext())
+                ) : (
+                  <>
+                    <div className="flex-1">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </div>
+                    {!isLastCell && (
+                      <div className="h-6 w-[1px] bg-border/60 mx-3 shrink-0 my-2" />
+                    )}
+                  </>
+                )}
+              </div>
+            </TableCell>
+          )
+        })}
       </TableRow>
     )
   }
@@ -815,23 +829,27 @@ export function MenuItemTable({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
           modifiers={[restrictToVerticalAxis]}
         >
-          <Table>
+          <Table className="w-full min-w-full">
             <TableHeader className="bg-muted sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
+                    const isActionsColumn = header.column.id === 'actions'
                     return (
                       <TableHead
                         key={header.id}
                         colSpan={header.colSpan}
                         style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                        className={cn(
+                          isActionsColumn && "sticky right-0 bg-background z-10 border-l border-border/50"
+                        )}
                       >
                         {header.isPlaceholder
                           ? null
@@ -845,7 +863,7 @@ export function MenuItemTable({
             <TableBody>
               {isLoading ? (
                 <TableRow className="border-b">
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={table.getVisibleLeafColumns().length} className="h-24 text-center">
                     {t('menu.items.loading')}
                   </TableCell>
                 </TableRow>
@@ -871,7 +889,7 @@ export function MenuItemTable({
                         {/* Category Header */}
                         <TableRow className="bg-muted/30 hover:bg-muted/30">
                           <TableCell 
-                            colSpan={columns.length} 
+                            colSpan={table.getVisibleLeafColumns().length} 
                             className="font-semibold text-sm py-3"
                           >
                             <div className="flex items-center gap-2 pl-4">
@@ -907,7 +925,7 @@ export function MenuItemTable({
                 </>
               ) : (
                 <TableRow className="border-b">
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={table.getVisibleLeafColumns().length} className="h-24 text-center">
                     {t('common.noResults')}
                   </TableCell>
                 </TableRow>
