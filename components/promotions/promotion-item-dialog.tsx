@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,7 @@ import {
 import { type MenuItemWithCategory } from '@/lib/api/menu-items'
 import { type MenuCategory } from '@/lib/api/menu-categories'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 import {
   Command,
   CommandEmpty,
@@ -90,6 +91,18 @@ export function PromotionItemDialog({
   
   // Get selected menu item names for display
   const selectedMenuItems = menuItems.filter(item => selectedMenuItemIds.includes(item.id))
+  
+  // Ref for trigger button to measure width
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [triggerWidth, setTriggerWidth] = useState<number | undefined>(undefined)
+  
+  // Measure trigger width when popover opens
+  useEffect(() => {
+    if (menuItemOpen && triggerRef.current) {
+      const width = triggerRef.current.offsetWidth
+      setTriggerWidth(width)
+    }
+  }, [menuItemOpen])
 
   // Reset form when dialog opens/closes or item changes
   useEffect(() => {
@@ -279,6 +292,7 @@ export function PromotionItemDialog({
                 <Popover open={menuItemOpen} onOpenChange={setMenuItemOpen}>
                   <PopoverTrigger asChild>
                     <Button
+                      ref={triggerRef}
                       variant="outline"
                       role="combobox"
                       aria-expanded={menuItemOpen}
@@ -300,10 +314,14 @@ export function PromotionItemDialog({
                       <IconChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start">
-                    <Command>
+                  <PopoverContent 
+                    className="p-0 w-auto" 
+                    align="start"
+                    style={triggerWidth ? { width: `${triggerWidth}px`, minWidth: `${triggerWidth}px` } : undefined}
+                  >
+                    <Command className="w-full">
                       <CommandInput placeholder={t('common.search') || 'Search menu items...'} />
-                      <CommandList>
+                      <CommandList className="w-full">
                         <CommandEmpty>{t('common.noResults') || 'No menu items found.'}</CommandEmpty>
                         {menuCategories.map((category) => {
                           const categoryItems = menuItems.filter(
@@ -314,11 +332,24 @@ export function PromotionItemDialog({
                             <CommandGroup key={category.id} heading={category.name}>
                               {categoryItems.map((item) => {
                                 const isSelected = selectedMenuItemIds.includes(item.id)
+                                // Check if item is already associated with this promotion
+                                const isAlreadyAssociated = !isEditing && presetPromotionId 
+                                  ? existingAssociations.some(
+                                      assoc => assoc.promotion_id === presetPromotionId && assoc.menu_item_id === item.id
+                                    )
+                                  : !isEditing && promotionId
+                                  ? existingAssociations.some(
+                                      assoc => assoc.promotion_id === promotionId && assoc.menu_item_id === item.id
+                                    )
+                                  : false
+                                
                                 return (
                                   <CommandItem
                                     key={item.id}
                                     value={item.name}
+                                    disabled={isAlreadyAssociated}
                                     onSelect={() => {
+                                      if (isAlreadyAssociated) return
                                       if (isSelected) {
                                         setSelectedMenuItemIds(selectedMenuItemIds.filter(id => id !== item.id))
                                       } else {
@@ -328,6 +359,9 @@ export function PromotionItemDialog({
                                         setErrors({ ...errors, menu_item_id: undefined })
                                       }
                                     }}
+                                    className={cn(
+                                      isAlreadyAssociated && "opacity-50 cursor-not-allowed"
+                                    )}
                                   >
                                     <IconCheck
                                       className={cn(
@@ -335,7 +369,12 @@ export function PromotionItemDialog({
                                         isSelected ? "opacity-100" : "opacity-0"
                                       )}
                                     />
-                                    {item.name}
+                                    <span className="flex-1">{item.name}</span>
+                                    {isAlreadyAssociated && (
+                                      <Badge variant="secondary" className="ml-2 text-xs">
+                                        {t('promotions.items.alreadyAdded') || 'Already added'}
+                                      </Badge>
+                                    )}
                                   </CommandItem>
                                 )
                               })}

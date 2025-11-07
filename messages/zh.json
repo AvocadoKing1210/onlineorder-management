@@ -513,6 +513,7 @@
       "addItem": "添加商品",
       "selectedItems": "已选择 {{count}} 个商品",
       "duplicateItems": "部分商品已链接到此促销活动",
+      "alreadyAdded": "已添加",
       "noAssociations": "未找到商品关联",
       "createAssociation": "创建关联",
       "editAssociation": "编辑关联",

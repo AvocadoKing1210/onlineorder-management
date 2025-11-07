@@ -513,6 +513,7 @@
       "addItem": "Add Item",
       "selectedItems": "{{count}} items selected",
       "duplicateItems": "Some items are already linked to this promotion",
+      "alreadyAdded": "Already added",
       "noAssociations": "No item associations found",
       "createAssociation": "Create Association",
       "editAssociation": "Edit Association",
