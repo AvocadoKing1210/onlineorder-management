@@ -12,6 +12,7 @@ import {
   IconFilter,
   IconX,
   IconExternalLink,
+  IconTrash,
 } from '@tabler/icons-react'
 import {
   ColumnDef,
@@ -61,11 +62,12 @@ import Link from 'next/link'
 
 interface PromotionItemTableProps {
   data: PromotionItemWithRelations[]
-  promotions: Array<{ id: string; name: string }>
+  promotions?: Array<{ id: string; name: string }> // Optional since we're in promotion context
   menuItems: Array<{ id: string; name: string; visible: boolean }>
   onEdit: (item: PromotionItemWithRelations) => void
   onDelete: (id: string) => void
   isLoading?: boolean
+  promotionType?: string // 'bogo' | 'percent_off' | 'amount_off'
 }
 
 const roleBadgeVariants: Record<'buy' | 'get' | 'target', 'default' | 'secondary' | 'outline'> = {
@@ -81,9 +83,22 @@ export function PromotionItemTable({
   onEdit,
   onDelete,
   isLoading = false,
+  promotionType,
 }: PromotionItemTableProps) {
   const { t } = useTranslation()
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const isBOGO = promotionType === 'bogo'
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(() => {
+    // For BOGO, hide all columns except menu_item by default
+    if (isBOGO) {
+      return {
+        role: false,
+        required_quantity: false,
+        get_quantity: false,
+        updated_at: false,
+      } as VisibilityState
+    }
+    return {} as VisibilityState
+  })
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [pagination, setPagination] = React.useState({
@@ -91,59 +106,58 @@ export function PromotionItemTable({
     pageSize: 10,
   })
   const [showFilters, setShowFilters] = React.useState(false)
-  const [promotionFilter, setPromotionFilter] = React.useState<string>('all')
   const [roleFilter, setRoleFilter] = React.useState<'buy' | 'get' | 'target' | 'all'>('all')
+  const [searchQuery, setSearchQuery] = React.useState('')
 
   // Filter data
   const filteredData = React.useMemo(() => {
     let result = data
 
-    if (promotionFilter !== 'all') {
-      result = result.filter((item) => item.promotion_id === promotionFilter)
-    }
-
+    // Filter by role
     if (roleFilter !== 'all') {
       result = result.filter((item) => item.role === roleFilter)
     }
 
-    return result
-  }, [data, promotionFilter, roleFilter])
+    // Filter by search query (menu item name)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter((item) => 
+        item.menu_item?.name?.toLowerCase().includes(query)
+      )
+    }
 
-  const hasActiveFilters = promotionFilter !== 'all' || roleFilter !== 'all'
+    return result
+  }, [data, roleFilter, searchQuery])
+
+  const hasActiveFilters = roleFilter !== 'all' || searchQuery !== ''
 
   const clearFilters = () => {
-    setPromotionFilter('all')
     setRoleFilter('all')
+    setSearchQuery('')
   }
 
   const columns: ColumnDef<PromotionItemWithRelations>[] = React.useMemo(
     () => [
-      {
-        accessorKey: 'promotion',
-        header: t('promotions.items.promotion'),
-        cell: ({ row }) => {
-          const promotion = row.original.promotion
-          if (!promotion) return <span className="text-muted-foreground">—</span>
-          return (
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/promotions?promotion=${promotion.id}`}
-                className="font-medium hover:underline flex items-center gap-1"
-              >
-                {promotion.name}
-                <IconExternalLink className="h-3 w-3" />
-              </Link>
-            </div>
-          )
-        },
-        enableHiding: false,
-      },
       {
         accessorKey: 'menu_item',
         header: t('promotions.items.menuItem'),
         cell: ({ row }) => {
           const menuItem = row.original.menu_item
           if (!menuItem) return <span className="text-muted-foreground">—</span>
+          // For BOGO, show plain text without link
+          if (isBOGO) {
+            return (
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{menuItem.name}</span>
+                {!menuItem.visible && (
+                  <Badge variant="secondary" className="text-xs">
+                    {t('common.hidden')}
+                  </Badge>
+                )}
+              </div>
+            )
+          }
+          // For non-BOGO, show with link
           return (
             <div className="flex items-center gap-2">
               <Link
@@ -220,6 +234,23 @@ export function PromotionItemTable({
         header: '',
         cell: ({ row }) => {
           const item = row.original
+          // For BOGO, show only delete button (trash icon)
+          if (isBOGO) {
+            return (
+              <div className="flex items-center justify-end">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={() => onDelete(item.id)}
+                >
+                  <IconTrash className="h-4 w-4" />
+                  <span className="sr-only">{t('common.delete')}</span>
+                </Button>
+              </div>
+            )
+          }
+          // For non-BOGO, show dropdown menu with edit and delete
           return (
             <div className="flex items-center justify-end">
               <DropdownMenu>
@@ -249,7 +280,7 @@ export function PromotionItemTable({
         size: 50,
       },
     ],
-    [t, onEdit, onDelete]
+    [t, onEdit, onDelete, isBOGO]
   )
 
   const table = useReactTable({
@@ -281,83 +312,59 @@ export function PromotionItemTable({
       <div className="flex items-center justify-between gap-4">
         <Input
           placeholder={t('common.search')}
-          value={(table.getColumn('promotion')?.getFilterValue() as string) ?? ''}
-          onChange={(event) =>
-            table.getColumn('promotion')?.setFilterValue(event.target.value)
-          }
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
           className="w-80"
         />
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className={cn(hasActiveFilters && 'border-primary')}
-          >
-            <IconFilter className="h-4 w-4 shrink-0" />
-            <span className="hidden lg:inline">{t('promotions.filters.title')}</span>
-            {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 shrink-0">
-                {[promotionFilter !== 'all' ? 1 : 0, roleFilter !== 'all' ? 1 : 0].reduce(
-                  (a, b) => a + b,
-                  0
-                )}
-              </Badge>
-            )}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <IconLayoutColumns className="h-4 w-4" />
-                <span className="hidden lg:inline">{t('common.columns')}</span>
-                <IconChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {table
-                .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      className="capitalize"
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                    >
-                      {column.id}
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {!isBOGO && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(hasActiveFilters && 'border-primary')}
+            >
+              <IconFilter className="h-4 w-4 shrink-0" />
+              <span className="hidden lg:inline">{t('promotions.filters.title')}</span>
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 shrink-0">
+                  {[roleFilter !== 'all' ? 1 : 0, searchQuery ? 1 : 0].reduce((a, b) => a + b, 0)}
+                </Badge>
+              )}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <IconLayoutColumns className="h-4 w-4" />
+                  <span className="hidden lg:inline">{t('common.columns')}</span>
+                  <IconChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="capitalize"
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                      >
+                        {column.id}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
 
-      {showFilters && (
+      {showFilters && !isBOGO && (
         <div className="rounded-lg border bg-muted/50 p-4">
           <div className="flex items-end gap-2 overflow-x-auto pb-2 -mx-4 px-4">
-            {/* Promotion Filter */}
-            <div className="space-y-2 min-w-[180px] flex-shrink-0">
-              <Label className="text-xs">{t('promotions.items.promotion')}</Label>
-              <Select
-                value={promotionFilter}
-                onValueChange={setPromotionFilter}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('common.all')}</SelectItem>
-                  {promotions.map((promotion) => (
-                    <SelectItem key={promotion.id} value={promotion.id}>
-                      {promotion.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Role Filter */}
             <div className="space-y-2 min-w-[180px] flex-shrink-0">
               <Label className="text-xs">{t('promotions.items.role')}</Label>
@@ -457,7 +464,7 @@ export function PromotionItemTable({
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
+        <div className="hidden text-sm text-muted-foreground lg:block">
           {t('common.showingResults', {
             from: table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1,
             to: Math.min(
@@ -467,24 +474,27 @@ export function PromotionItemTable({
             total: filteredData.length,
           })}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <Button
             variant="outline"
-            size="sm"
+            className="hidden size-8 p-0 lg:flex"
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
           >
+            <span className="sr-only">Go to first page</span>
             <IconChevronsLeft className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
-            size="sm"
+            className="size-8"
+            size="icon"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
+            <span className="sr-only">Go to previous page</span>
             <IconChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="flex items-center gap-1 text-sm">
+          <div className="hidden items-center gap-1 text-sm lg:flex">
             <span>{t('common.page')}</span>
             <strong>
               {table.getState().pagination.pageIndex + 1} {t('common.of')}{' '}
@@ -493,18 +503,22 @@ export function PromotionItemTable({
           </div>
           <Button
             variant="outline"
-            size="sm"
+            className="size-8"
+            size="icon"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
+            <span className="sr-only">Go to next page</span>
             <IconChevronRight className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
-            size="sm"
+            className="hidden size-8 lg:flex"
+            size="icon"
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
           >
+            <span className="sr-only">Go to last page</span>
             <IconChevronsRight className="h-4 w-4" />
           </Button>
           <Select
@@ -513,7 +527,7 @@ export function PromotionItemTable({
               table.setPageSize(Number(value))
             }}
           >
-            <SelectTrigger className="h-8 w-[70px]">
+            <SelectTrigger className="hidden h-8 w-[70px] lg:flex">
               <SelectValue placeholder={table.getState().pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side="top">

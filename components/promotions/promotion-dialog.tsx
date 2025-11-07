@@ -35,7 +35,31 @@ import {
   type UpdatePromotionData,
 } from '@/lib/api/promotions'
 import { cn } from '@/lib/utils'
-import { IconSettings, IconCalendar, IconTag, IconClock } from '@tabler/icons-react'
+import { IconSettings, IconCalendar, IconTag, IconClock, IconShoppingBag, IconPlus } from '@tabler/icons-react'
+import { PromotionItemTable } from '@/components/promotions/promotion-item-table'
+import { PromotionItemDialog } from '@/components/promotions/promotion-item-dialog'
+import {
+  getPromotionItems,
+  createPromotionItem,
+  updatePromotionItem,
+  deletePromotionItem,
+  type PromotionItemWithRelations,
+  type CreatePromotionItemData,
+  type UpdatePromotionItemData,
+} from '@/lib/api/promotion-items'
+import { getMenuItems, type MenuItemWithCategory } from '@/lib/api/menu-items'
+import { getMenuCategories, type MenuCategory } from '@/lib/api/menu-categories'
+import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface PromotionDialogProps {
   open: boolean
@@ -44,7 +68,7 @@ interface PromotionDialogProps {
   onSave: (data: CreatePromotionData | UpdatePromotionData) => Promise<void>
 }
 
-type PromotionCategory = 'general' | 'discount' | 'schedule'
+type PromotionCategory = 'general' | 'discount' | 'schedule' | 'items'
 
 interface CategoryConfig {
   id: PromotionCategory
@@ -84,6 +108,16 @@ export function PromotionDialog({
     activeUntil?: string
   }>({})
 
+  // Promotion items state
+  const [promotionItems, setPromotionItems] = useState<PromotionItemWithRelations[]>([])
+  const [menuItems, setMenuItems] = useState<MenuItemWithCategory[]>([])
+  const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([])
+  const [isLoadingItems, setIsLoadingItems] = useState(false)
+  const [itemDialogOpen, setItemDialogOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<PromotionItemWithRelations | null>(null)
+  const [deleteItemDialogOpen, setDeleteItemDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<PromotionItemWithRelations | null>(null)
+
   // Category configuration
   const getCategories = (): CategoryConfig[] => [
     {
@@ -101,7 +135,90 @@ export function PromotionDialog({
       label: t('promotions.categories.schedule'),
       icon: IconCalendar,
     },
+    {
+      id: 'items',
+      label: t('promotions.categories.items') || 'Items',
+      icon: IconShoppingBag,
+    },
   ]
+
+  // Load promotion items and menu items
+  const loadPromotionItems = async () => {
+    if (!promotion?.id) {
+      setPromotionItems([])
+      return
+    }
+    
+    try {
+      setIsLoadingItems(true)
+      const [itemsData, menuItemsData, categoriesData] = await Promise.all([
+        getPromotionItems({ promotion_id: promotion.id }),
+        getMenuItems(),
+        getMenuCategories(),
+      ])
+      setPromotionItems(itemsData)
+      setMenuItems(menuItemsData)
+      setMenuCategories(categoriesData)
+    } catch (error) {
+      console.error('Error loading promotion items:', error)
+      toast.error(t('promotions.items.loadFailed') || 'Failed to load items')
+    } finally {
+      setIsLoadingItems(false)
+    }
+  }
+
+  // Promotion item handlers
+  const handleCreateItem = () => {
+    setEditingItem(null)
+    setItemDialogOpen(true)
+  }
+
+  const handleEditItem = (item: PromotionItemWithRelations) => {
+    setEditingItem(item)
+    setItemDialogOpen(true)
+  }
+
+  const handleSaveItem = async (data: CreatePromotionItemData | UpdatePromotionItemData) => {
+    try {
+      if (editingItem) {
+        await updatePromotionItem(editingItem.id, data as UpdatePromotionItemData)
+        toast.success(t('promotions.items.updated'))
+      } else {
+        await createPromotionItem(data as CreatePromotionItemData)
+        toast.success(t('promotions.items.created'))
+      }
+      await loadPromotionItems()
+      setItemDialogOpen(false)
+      setEditingItem(null)
+    } catch (error: any) {
+      console.error('Error saving promotion item:', error)
+      toast.error(error.message || (editingItem ? t('promotions.items.updateFailed') : t('promotions.items.createFailed')))
+      throw error
+    }
+  }
+
+  const handleDeleteItemClick = (id: string) => {
+    const item = promotionItems.find((i) => i.id === id)
+    if (item) {
+      setItemToDelete(item)
+      setDeleteItemDialogOpen(true)
+    }
+  }
+
+  const handleDeleteItemConfirm = async () => {
+    if (!itemToDelete) return
+
+    try {
+      await deletePromotionItem(itemToDelete.id)
+      toast.success(t('promotions.items.deleted'))
+      await loadPromotionItems()
+      setDeleteItemDialogOpen(false)
+      setItemToDelete(null)
+    } catch (error: any) {
+      console.error('Error deleting promotion item:', error)
+      toast.error(t('promotions.items.deleteFailed'))
+    }
+  }
 
   // Reset form when dialog opens/closes or promotion changes
   useEffect(() => {
@@ -138,6 +255,7 @@ export function PromotionDialog({
         setStackable(promotion.stackable)
         setLimitPerUser(promotion.limit_per_user)
         setLimitTotal(promotion.limit_total)
+        loadPromotionItems()
       } else {
         setName('')
         setDescription('')
@@ -641,11 +759,11 @@ export function PromotionDialog({
         </div>
 
         {/* Active Until Time */}
-        <div className="grid gap-2.5">
+      <div className="grid gap-2.5">
           <div className="flex items-baseline gap-1.5 h-5">
             <Label htmlFor="activeUntilTime" className="text-sm font-medium">
               {t('promotions.fields.endTime')}
-            </Label>
+        </Label>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -657,18 +775,18 @@ export function PromotionDialog({
                 <div className="flex items-center px-3 bg-muted border-r border-input">
                   <IconClock className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <Input
+        <Input
                   id="activeUntilTime"
                   type="text"
                   value={activeUntilTime}
                   placeholder="HH:MM (e.g., 23:59)"
-                  onChange={(e) => {
+          onChange={(e) => {
                     const formatted = formatTimeInput(e.target.value)
                     setActiveUntilTime(formatted)
-                    if (errors.activeUntil) {
-                      setErrors({ ...errors, activeUntil: undefined })
-                    }
-                  }}
+            if (errors.activeUntil) {
+              setErrors({ ...errors, activeUntil: undefined })
+            }
+          }}
                   onBlur={(e) => {
                     const formatted = formatTimeOnBlur(e.target.value)
                     setActiveUntilTime(formatted)
@@ -689,11 +807,11 @@ export function PromotionDialog({
             )}
           </Tooltip>
           <div className="min-h-[1.25rem]">
-            {errors.activeUntil && (
+        {errors.activeUntil && (
               <p className="text-sm text-destructive">
-                {errors.activeUntil}
-              </p>
-            )}
+            {errors.activeUntil}
+          </p>
+        )}
           </div>
         </div>
       </div>
@@ -751,6 +869,59 @@ export function PromotionDialog({
     </div>
   )
 
+  const renderItems = () => {
+    if (!isEditing) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12">
+          <p className="text-muted-foreground text-sm">
+            {t('promotions.items.saveFirst') || 'Please save the promotion first to manage items'}
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium">
+              {t('promotions.items.title') || 'Promotion Items'}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t('promotions.items.description') || 'Link menu items to this promotion'}
+            </p>
+          </div>
+          <Button onClick={handleCreateItem} size="sm">
+            <IconPlus className="mr-2 h-4 w-4" />
+            {t('promotions.items.addItem') || 'Add Item'}
+          </Button>
+        </div>
+
+        {promotionItems.length === 0 && !isLoadingItems ? (
+          <div className="flex flex-col items-center justify-center py-12 border rounded-lg">
+            <p className="text-muted-foreground text-sm mb-4">
+              {t('promotions.items.noAssociations') || 'No items linked to this promotion'}
+            </p>
+            <Button onClick={handleCreateItem} size="sm">
+              <IconPlus className="mr-2 h-4 w-4" />
+              {t('promotions.items.addItem') || 'Add Item'}
+            </Button>
+          </div>
+        ) : (
+          <PromotionItemTable
+            data={promotionItems}
+            promotions={promotion ? [{ id: promotion.id, name: promotion.name }] : []}
+            menuItems={menuItems.map((m) => ({ id: m.id, name: m.name, visible: m.visible }))}
+            onEdit={handleEditItem}
+            onDelete={handleDeleteItemClick}
+            isLoading={isLoadingItems}
+            promotionType={promotion?.type}
+          />
+        )}
+      </div>
+    )
+  }
+
   const renderContent = () => {
     switch (selectedCategory) {
       case 'general':
@@ -759,6 +930,8 @@ export function PromotionDialog({
         return renderDiscount()
       case 'schedule':
         return renderSchedule()
+      case 'items':
+        return renderItems()
       default:
         return null
     }
@@ -826,6 +999,52 @@ export function PromotionDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Promotion Item Dialog */}
+      {isEditing && (
+        <>
+          <PromotionItemDialog
+            open={itemDialogOpen}
+            onOpenChange={setItemDialogOpen}
+            item={editingItem}
+            promotions={promotion ? [{ id: promotion.id, name: promotion.name, type: promotion.type }] : []}
+            menuItems={menuItems}
+            menuCategories={menuCategories}
+            existingAssociations={promotionItems.map((i) => ({
+              promotion_id: i.promotion_id,
+              menu_item_id: i.menu_item_id,
+            }))}
+            existingItems={promotionItems}
+            onSave={handleSaveItem}
+            presetPromotionId={promotion?.id}
+          />
+
+          <AlertDialog open={deleteItemDialogOpen} onOpenChange={setDeleteItemDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('promotions.items.deleteConfirm')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t('promotions.items.deleteConfirmDescription')}
+                  {itemToDelete?.menu_item?.name && (
+                    <span className="font-semibold block mt-2">
+                      &quot;{itemToDelete.menu_item.name}&quot;
+                    </span>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteItemConfirm}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {t('common.delete')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </Dialog>
   )
 }

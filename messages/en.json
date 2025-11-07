@@ -436,7 +436,8 @@
     "categories": {
       "general": "General",
       "discount": "Discount",
-      "schedule": "Schedule"
+      "schedule": "Schedule",
+      "items": "Items"
     },
     "fields": {
       "name": "Name",
@@ -508,6 +509,10 @@
     "items": {
       "title": "Promotion Items",
       "description": "Link promotions to specific menu items",
+      "saveFirst": "Please save the promotion first to manage items",
+      "addItem": "Add Item",
+      "selectedItems": "{{count}} items selected",
+      "duplicateItems": "Some items are already linked to this promotion",
       "noAssociations": "No item associations found",
       "createAssociation": "Create Association",
       "editAssociation": "Edit Association",

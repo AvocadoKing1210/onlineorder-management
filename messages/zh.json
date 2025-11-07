@@ -436,7 +436,8 @@
     "categories": {
       "general": "常规",
       "discount": "折扣",
-      "schedule": "时间安排"
+      "schedule": "时间安排",
+      "items": "商品"
     },
     "fields": {
       "name": "名称",
@@ -508,6 +509,10 @@
     "items": {
       "title": "促销商品",
       "description": "将促销活动链接到特定菜单商品",
+      "saveFirst": "请先保存促销活动以管理商品",
+      "addItem": "添加商品",
+      "selectedItems": "已选择 {{count}} 个商品",
+      "duplicateItems": "部分商品已链接到此促销活动",
       "noAssociations": "未找到商品关联",
       "createAssociation": "创建关联",
       "editAssociation": "编辑关联",
