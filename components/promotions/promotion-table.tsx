@@ -89,6 +89,7 @@ export function PromotionTable({
   isLoading = false,
 }: PromotionTableProps) {
   const { t } = useTranslation()
+  const [localData, setLocalData] = React.useState(data)
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
     limits: false,
     updated_at: false,
@@ -103,9 +104,14 @@ export function PromotionTable({
   const [typeFilter, setTypeFilter] = React.useState<'bogo' | 'percent_off' | 'amount_off' | 'all'>('all')
   const [statusFilter, setStatusFilter] = React.useState<PromotionStatus | 'all'>('all')
 
+  // Sync local data with props
+  React.useEffect(() => {
+    setLocalData(data)
+  }, [data])
+
   // Filter data by type and status
   const filteredData = React.useMemo(() => {
-    let result = data
+    let result = localData
 
     if (typeFilter !== 'all') {
       result = result.filter((p) => p.type === typeFilter)
@@ -116,7 +122,7 @@ export function PromotionTable({
     }
 
     return result
-  }, [data, typeFilter, statusFilter])
+  }, [localData, typeFilter, statusFilter])
 
   const hasActiveFilters = typeFilter !== 'all' || statusFilter !== 'all'
 
@@ -185,7 +191,33 @@ export function PromotionTable({
             if (!onQuickEdit) return
             // Toggle between active and inactive
             const newStatus = status === 'active' ? 'inactive' : 'active'
-            await onQuickEdit(promotion, 'status', newStatus)
+            
+            // Optimistically update local state
+            const updatedPromotion = { ...promotion }
+            if (newStatus === 'inactive') {
+              updatedPromotion.active_until = new Date().toISOString()
+            } else {
+              const now = new Date()
+              if (new Date(promotion.active_from) > now) {
+                updatedPromotion.active_from = now.toISOString()
+              }
+              const futureDate = new Date()
+              futureDate.setDate(futureDate.getDate() + 30)
+              updatedPromotion.active_until = futureDate.toISOString()
+            }
+            
+            setLocalData((prev) =>
+              prev.map((p) => (p.id === promotion.id ? updatedPromotion : p))
+            )
+            
+            try {
+              await onQuickEdit(promotion, 'status', newStatus)
+            } catch (error) {
+              // Revert on error
+              setLocalData((prev) =>
+                prev.map((p) => (p.id === promotion.id ? promotion : p))
+              )
+            }
           }
           return (
             <Badge 
@@ -255,7 +287,23 @@ export function PromotionTable({
           const promotion = row.original
           const handleClick = async () => {
             if (!onQuickEdit) return
-            await onQuickEdit(promotion, 'stackable', !promotion.stackable)
+            const newStackable = !promotion.stackable
+            
+            // Optimistically update local state
+            setLocalData((prev) =>
+              prev.map((p) =>
+                p.id === promotion.id ? { ...p, stackable: newStackable } : p
+              )
+            )
+            
+            try {
+              await onQuickEdit(promotion, 'stackable', newStackable)
+            } catch (error) {
+              // Revert on error
+              setLocalData((prev) =>
+                prev.map((p) => (p.id === promotion.id ? promotion : p))
+              )
+            }
           }
           return (
             <Tooltip>

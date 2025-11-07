@@ -114,6 +114,12 @@ export default function PromotionsPage() {
       if (field === 'stackable') {
         await updatePromotion(promotion.id, { stackable: value as boolean })
         toast.success(t('promotions.updated'))
+        // Update local state after successful API call
+        setPromotions((prev) =>
+          prev.map((p) =>
+            p.id === promotion.id ? { ...p, stackable: value as boolean } : p
+          )
+        )
       } else if (field === 'status') {
         const now = new Date()
         const nowISO = now.toISOString()
@@ -122,6 +128,12 @@ export default function PromotionsPage() {
         if (status === 'active') {
           // Make inactive by setting active_until to now
           await updatePromotion(promotion.id, { active_until: nowISO })
+          // Update local state after successful API call
+          setPromotions((prev) =>
+            prev.map((p) =>
+              p.id === promotion.id ? { ...p, active_until: nowISO } : p
+            )
+          )
         } else {
           // Make active by ensuring active_from is in the past and active_until is in the future
           const from = new Date(promotion.active_from)
@@ -141,13 +153,20 @@ export default function PromotionsPage() {
           }
           
           await updatePromotion(promotion.id, updateData)
+          // Update local state after successful API call
+          setPromotions((prev) =>
+            prev.map((p) =>
+              p.id === promotion.id ? { ...p, ...updateData } : p
+            )
+          )
         }
         toast.success(t('promotions.updated'))
       }
-      await loadPromotions()
+      // Don't reload all promotions - state is already updated
     } catch (error: any) {
       console.error('Error updating promotion:', error)
       toast.error(t('promotions.updateFailed'))
+      throw error // Re-throw so table can revert
     }
   }
 
