@@ -535,6 +535,79 @@
       "deleteConfirmDescription": "这将删除促销活动和菜单商品之间的链接。",
       "loadFailed": "加载关联失败"
     }
+  },
+  "notifications": {
+    "title": "通知",
+    "description": "创建和管理应用内公告和通知",
+    "noNotifications": "未找到通知",
+    "noNotificationsDescription": "创建您的第一个通知以开始使用",
+    "createNotification": "创建通知",
+    "editNotification": "编辑通知",
+    "editNotificationDescription": "更新通知详情",
+    "createNotificationDescription": "创建新的应用内通知",
+    "deleteNotification": "删除通知",
+    "edit": "编辑",
+    "created": "通知创建成功",
+    "updated": "通知更新成功",
+    "deleted": "通知删除成功",
+    "createFailed": "创建通知失败",
+    "updateFailed": "更新通知失败",
+    "deleteFailed": "删除通知失败",
+    "loadFailed": "加载通知失败",
+    "loading": "加载通知中...",
+    "deleteConfirm": "删除通知？",
+    "deleteConfirmDescription": "这将永久删除该通知。",
+    "categories": {
+      "general": "常规",
+      "schedule": "时间安排"
+    },
+    "fields": {
+      "title": "标题",
+      "titlePlaceholder": "输入通知标题",
+      "titleRequired": "标题是必填项",
+      "body": "内容",
+      "bodyPlaceholder": "输入通知内容文本",
+      "bodyRequired": "内容是必填项",
+      "audience": "受众",
+      "audienceAllCustomers": "所有客户",
+      "audienceAllCustomersDescription": "对所有已认证客户可见",
+      "audienceRecentPurchasers": "仅限最近购买者",
+      "audienceRecentPurchasersDescription": "仅对已下单的用户可见",
+      "publishedAt": "发布时间",
+      "publishedAtDescription": "通知何时对客户可见",
+      "publishedAtRequired": "发布时间是必填项",
+      "expiryAt": "过期时间",
+      "expiryAtDescription": "通知何时过期（留空表示永不过期）",
+      "expiryAtAfterPublished": "过期日期必须在发布日期之后",
+      "dateRange": "日期范围",
+      "startTime": "开始时间",
+      "endTime": "结束时间",
+      "selectEndDate": "请先选择结束日期"
+    },
+    "status": {
+      "title": "状态",
+      "active": "活跃",
+      "inactive": "未激活",
+      "expired": "已过期",
+      "upcoming": "即将发布"
+    },
+    "filters": {
+      "title": "筛选",
+      "allAudiences": "所有受众",
+      "allStatuses": "所有状态",
+      "clearFilters": "清除筛选",
+      "search": "搜索通知..."
+    },
+    "table": {
+      "title": "标题",
+      "body": "内容",
+      "audience": "受众",
+      "publishedAt": "发布时间",
+      "expiryAt": "过期时间",
+      "status": "状态",
+      "updatedAt": "更新时间",
+      "actions": "操作"
+    }
   }
 }
 

@@ -27,7 +27,8 @@
     "isRequired": "is required",
     "hidden": "Hidden",
     "createdAt": "Created At",
-    "showingResults": "Showing {{from}} to {{to}} of {{total}} results"
+    "showingResults": "Showing {{from}} to {{to}} of {{total}} results",
+    "create": "Create"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -534,6 +535,79 @@
       "deleteConfirm": "Delete Association?",
       "deleteConfirmDescription": "This will remove the link between the promotion and menu item.",
       "loadFailed": "Failed to load associations"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Create and manage in-app announcements and notifications",
+    "noNotifications": "No notifications found",
+    "noNotificationsDescription": "Create your first notification to get started",
+    "createNotification": "Create Notification",
+    "editNotification": "Edit Notification",
+    "editNotificationDescription": "Update notification details",
+    "createNotificationDescription": "Create a new in-app notification",
+    "deleteNotification": "Delete Notification",
+    "edit": "Edit",
+    "created": "Notification created successfully",
+    "updated": "Notification updated successfully",
+    "deleted": "Notification deleted successfully",
+    "createFailed": "Failed to create notification",
+    "updateFailed": "Failed to update notification",
+    "deleteFailed": "Failed to delete notification",
+    "loadFailed": "Failed to load notifications",
+    "loading": "Loading notifications...",
+    "deleteConfirm": "Delete Notification?",
+    "deleteConfirmDescription": "This will permanently delete the notification.",
+    "categories": {
+      "general": "General",
+      "schedule": "Schedule"
+    },
+    "fields": {
+      "title": "Title",
+      "titlePlaceholder": "Enter notification title",
+      "titleRequired": "Title is required",
+      "body": "Body",
+      "bodyPlaceholder": "Enter notification body text",
+      "bodyRequired": "Body is required",
+      "audience": "Audience",
+      "audienceAllCustomers": "All Customers",
+      "audienceAllCustomersDescription": "Visible to all authenticated customers",
+      "audienceRecentPurchasers": "Recent Purchasers Only",
+      "audienceRecentPurchasersDescription": "Visible only to users who have placed orders",
+      "publishedAt": "Published At",
+      "publishedAtDescription": "When the notification becomes visible to customers",
+      "publishedAtRequired": "Published at is required",
+      "expiryAt": "Expiry At",
+      "expiryAtDescription": "When the notification expires (leave empty for no expiry)",
+      "expiryAtAfterPublished": "Expiry date must be after published date",
+      "dateRange": "Date Range",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "selectEndDate": "Select an end date first"
+    },
+    "status": {
+      "title": "Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "expired": "Expired",
+      "upcoming": "Upcoming"
+    },
+    "filters": {
+      "title": "Filters",
+      "allAudiences": "All Audiences",
+      "allStatuses": "All Statuses",
+      "clearFilters": "Clear Filters",
+      "search": "Search notifications..."
+    },
+    "table": {
+      "title": "Title",
+      "body": "Body",
+      "audience": "Audience",
+      "publishedAt": "Published At",
+      "expiryAt": "Expiry At",
+      "status": "Status",
+      "updatedAt": "Updated At",
+      "actions": "Actions"
     }
   }
 }
