@@ -87,9 +87,12 @@ export function PromotionItemTable({
 }: PromotionItemTableProps) {
   const { t } = useTranslation()
   const isBOGO = promotionType === 'bogo'
+  const isAmountOff = promotionType === 'amount_off'
+  const isPercentOff = promotionType === 'percent_off'
+  const isSimplified = isBOGO || isAmountOff || isPercentOff
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(() => {
-    // For BOGO, hide all columns except menu_item by default
-    if (isBOGO) {
+    // For BOGO, amount_off, and percent_off, hide all columns except menu_item by default
+    if (isSimplified) {
       return {
         role: false,
         required_quantity: false,
@@ -144,8 +147,8 @@ export function PromotionItemTable({
         cell: ({ row }) => {
           const menuItem = row.original.menu_item
           if (!menuItem) return <span className="text-muted-foreground">—</span>
-          // For BOGO, show plain text without link
-          if (isBOGO) {
+          // For BOGO and amount_off, show plain text without link
+          if (isSimplified) {
             return (
               <div className="flex items-center gap-2">
                 <span className="font-medium">{menuItem.name}</span>
@@ -157,7 +160,7 @@ export function PromotionItemTable({
               </div>
             )
           }
-          // For non-BOGO, show with link
+          // For other types, show with link
           return (
             <div className="flex items-center gap-2">
               <Link
@@ -234,8 +237,8 @@ export function PromotionItemTable({
         header: '',
         cell: ({ row }) => {
           const item = row.original
-          // For BOGO, show only delete button (trash icon)
-          if (isBOGO) {
+          // For BOGO and amount_off, show only delete button (trash icon)
+          if (isSimplified) {
             return (
               <div className="flex items-center justify-end">
                 <Button
@@ -250,7 +253,7 @@ export function PromotionItemTable({
               </div>
             )
           }
-          // For non-BOGO, show dropdown menu with edit and delete
+          // For other types, show dropdown menu with edit and delete
           return (
             <div className="flex items-center justify-end">
               <DropdownMenu>
@@ -280,7 +283,7 @@ export function PromotionItemTable({
         size: 50,
       },
     ],
-    [t, onEdit, onDelete, isBOGO]
+    [t, onEdit, onDelete, isSimplified]
   )
 
   const table = useReactTable({
@@ -316,7 +319,7 @@ export function PromotionItemTable({
           onChange={(event) => setSearchQuery(event.target.value)}
           className="w-80"
         />
-        {!isBOGO && (
+        {!isSimplified && (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -362,7 +365,7 @@ export function PromotionItemTable({
         )}
       </div>
 
-      {showFilters && !isBOGO && (
+      {showFilters && !isSimplified && (
         <div className="rounded-lg border bg-muted/50 p-4">
           <div className="flex items-end gap-2 overflow-x-auto pb-2 -mx-4 px-4">
             {/* Role Filter */}

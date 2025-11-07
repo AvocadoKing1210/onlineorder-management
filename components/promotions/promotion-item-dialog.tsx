@@ -73,6 +73,9 @@ export function PromotionItemDialog({
   const isEditing = !!item
   const promotion = promotions.find(p => p.id === (presetPromotionId || item?.promotion_id))
   const isBOGO = promotion?.type === 'bogo'
+  const isAmountOff = promotion?.type === 'amount_off'
+  const isPercentOff = promotion?.type === 'percent_off'
+  const isSimplified = isBOGO || isAmountOff || isPercentOff
   
   const [promotionId, setPromotionId] = useState('')
   const [selectedMenuItemIds, setSelectedMenuItemIds] = useState<string[]>([])
@@ -130,6 +133,11 @@ export function PromotionItemDialog({
             setRequiredQuantity(undefined)
         setGetQuantity(1)
           }
+        } else if (isAmountOff || isPercentOff) {
+          // For amount_off and percent_off, role is always 'target'
+          setRole('target')
+          setRequiredQuantity(undefined)
+          setGetQuantity(undefined)
         } else {
           setRole('target')
           setRequiredQuantity(undefined)
@@ -138,7 +146,7 @@ export function PromotionItemDialog({
       }
       setErrors({})
     }
-  }, [open, item, presetPromotionId, isBOGO, existingItems])
+  }, [open, item, presetPromotionId, isBOGO, isAmountOff, isPercentOff, existingItems])
 
   const validate = (): boolean => {
     const newErrors: typeof errors = {}
@@ -163,8 +171,8 @@ export function PromotionItemDialog({
       }
     }
 
-    // Validate quantities based on role (only for non-BOGO or when editing)
-    if (!isBOGO || isEditing) {
+    // Validate quantities based on role (only for non-simplified types or when editing)
+    if (!isSimplified || isEditing) {
     if (role === 'buy' && (!requiredQuantity || requiredQuantity < 1)) {
       newErrors.required_quantity = t('promotions.items.requiredQuantity') + ' ' + t('common.isRequired')
     }
@@ -212,8 +220,19 @@ export function PromotionItemDialog({
               get_quantity: 1, // Always 1 for BOGO
             } as CreatePromotionItemData)
           }
+        } else if (isAmountOff || isPercentOff) {
+          // For amount_off and percent_off, create items with role 'target' and no quantities
+          for (const menuItemId of selectedMenuItemIds) {
+            await onSave({
+              promotion_id: presetPromotionId || promotionId,
+              menu_item_id: menuItemId,
+              role: 'target',
+              required_quantity: null,
+              get_quantity: null,
+            } as CreatePromotionItemData)
+          }
         } else {
-          // For non-BOGO, create items with the selected role
+          // For other types, create items with the selected role
           for (const menuItemId of selectedMenuItemIds) {
             await onSave({
               promotion_id: presetPromotionId || promotionId,
@@ -413,7 +432,7 @@ export function PromotionItemDialog({
             </>
           )}
 
-          {!isBOGO && (
+          {!isSimplified && (
           <div className="grid gap-2.5">
             <div className="flex items-baseline gap-1.5">
               <Label htmlFor="role" className="text-sm font-medium">
