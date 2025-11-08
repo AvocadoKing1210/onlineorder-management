@@ -12,13 +12,30 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { IconLayoutGrid } from '@tabler/icons-react'
+import { cn } from '@/lib/utils'
+
+const COUNTER_VIEW_STORAGE_KEY = 'counter-view-open'
 
 export default function IncomingOrdersPage() {
   const { t } = useTranslation()
   const [unfinishedOrders, setUnfinishedOrders] = useState<Order[]>([])
   const [finishedOrders, setFinishedOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [showCounterView, setShowCounterView] = useState(false)
+  const [showCounterView, setShowCounterView] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(COUNTER_VIEW_STORAGE_KEY)
+      return saved === 'true'
+    }
+    return false
+  })
+
+  // Persist counter view state to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(COUNTER_VIEW_STORAGE_KEY, String(showCounterView))
+    }
+  }, [showCounterView])
 
   const isToday = (dateString: string | null | undefined): boolean => {
     if (!dateString) return false
@@ -76,11 +93,11 @@ export default function IncomingOrdersPage() {
           </p>
         </div>
         <Button
-          onClick={() => setShowCounterView(true)}
-          className="gap-2"
+          onClick={() => setShowCounterView(!showCounterView)}
+          className="gap-2 bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
         >
           <IconLayoutGrid className="h-4 w-4" />
-          Counter View
+          {showCounterView ? 'Table View' : 'Counter View'}
         </Button>
       </div>
 
