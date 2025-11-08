@@ -22,6 +22,7 @@ import {
 } from '@/lib/api/orders'
 import { OrderStatusBadge } from './order-status-badge'
 import { OrderModeBadge } from './order-mode-badge'
+import { TimeAdjustment } from './time-adjustment'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { IconInfoCircle, IconPackage, IconHistory, IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react'
@@ -170,10 +171,18 @@ export function OrderDetailDialog({
 
     try {
       setIsUpdatingStatus(true)
-      const updatedOrder = await updateOrderStatus(order.id, {
+      
+      // When accepting an order, set default estimated_preparation_minutes to 20 if not already set
+      const updateData: any = {
         status: nextStatus,
         message: `Status updated to ${nextStatus}`,
-      })
+      }
+      
+      if (nextStatus === 'accepted' && !order.estimated_preparation_minutes) {
+        updateData.estimated_preparation_minutes = 20
+      }
+      
+      const updatedOrder = await updateOrderStatus(order.id, updateData)
       
       setOrder({ ...order, ...updatedOrder })
       toast.success(`Order status updated to ${nextStatus}`)
@@ -183,6 +192,11 @@ export function OrderDetailDialog({
     } finally {
       setIsUpdatingStatus(false)
     }
+  }
+
+  const handleTimeUpdate = () => {
+    // Reload order when time is updated
+    loadOrder()
   }
 
   const renderInformation = () => {
@@ -597,7 +611,12 @@ export function OrderDetailDialog({
             if (!canUpdateStatus) return null
             
             return (
-              <div className="border-t bg-background px-4 sm:px-6 py-4 flex justify-end shrink-0">
+              <div className="border-t bg-background px-4 sm:px-6 py-4 flex justify-end gap-2 shrink-0">
+                <TimeAdjustment
+                  orderId={order.id}
+                  currentMinutes={order.estimated_preparation_minutes}
+                  onUpdate={handleTimeUpdate}
+                />
                 <Button
                   variant="default"
                   size="default"

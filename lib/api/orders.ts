@@ -355,6 +355,38 @@ export async function updateOrderStatus(
 }
 
 /**
+ * Update order estimated preparation time
+ * Business Owner/Admin only
+ * Updates only the estimated_preparation_minutes without changing status
+ */
+export async function updateOrderEstimatedTime(
+  id: string,
+  estimated_preparation_minutes: number
+): Promise<Order> {
+  const supabase = await getSupabaseClient()
+
+  // Update only the estimated_preparation_minutes, status remains unchanged
+  const { data: order, error } = await supabase
+    .from('order')
+    .update({
+      estimated_preparation_minutes,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to update order estimated time: ${error.message}`)
+  }
+
+  if (!order) {
+    throw new Error('Failed to update order estimated time: No data returned')
+  }
+
+  return order as Order
+}
+
+/**
  * Cancel an order
  * Business Owner/Admin only
  */

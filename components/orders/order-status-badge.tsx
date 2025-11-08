@@ -23,13 +23,25 @@ const statusBadgeVariants: Record<Order['status'], 'default' | 'secondary' | 'de
 
 const statusBadgeColors: Record<Order['status'], string> = {
   created: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
-  submitted: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  submitted: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   accepted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  in_progress: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  ready: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  ready: 'bg-gray-900 text-gray-100 dark:bg-gray-100 dark:text-gray-900',
   completed: 'bg-green-200 text-green-900 dark:bg-green-800 dark:text-green-100',
   cancelled_by_user: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
   cancelled_by_store: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+}
+
+// Edge colors matching badge colors (deeper shades for visibility)
+export const statusEdgeColors: Record<Order['status'], string> = {
+  created: 'bg-gray-500 dark:bg-gray-600',
+  submitted: 'bg-green-500 dark:bg-green-600',
+  accepted: 'bg-yellow-500 dark:bg-yellow-600',
+  in_progress: 'bg-yellow-500 dark:bg-yellow-600',
+  ready: 'bg-gray-900 dark:bg-gray-100',
+  completed: 'bg-green-600 dark:bg-green-700',
+  cancelled_by_user: 'bg-red-500 dark:bg-red-600',
+  cancelled_by_store: 'bg-red-500 dark:bg-red-600',
 }
 
 export function OrderStatusBadge({

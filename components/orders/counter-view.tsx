@@ -13,6 +13,8 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { OrderDetailDialog } from './order-detail-dialog'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { TimeAdjustment } from './time-adjustment'
+import { statusEdgeColors } from './order-status-badge'
 
 interface CounterViewProps {
   orders: Order[]
@@ -129,10 +131,18 @@ export function CounterView({ orders, onClose, onOrderUpdate }: CounterViewProps
 
     try {
       setUpdatingOrderId(order.id)
-      const updatedOrder = await updateOrderStatus(order.id, {
+      
+      // When accepting an order, set default estimated_preparation_minutes to 20 if not already set
+      const updateData: any = {
         status: nextStatus,
         message: `Status updated to ${nextStatus}`,
-      })
+      }
+      
+      if (nextStatus === 'accepted' && !order.estimated_preparation_minutes) {
+        updateData.estimated_preparation_minutes = 20
+      }
+      
+      const updatedOrder = await updateOrderStatus(order.id, updateData)
       
       // Update local state immediately
       setCurrentOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o))
@@ -145,6 +155,11 @@ export function CounterView({ orders, onClose, onOrderUpdate }: CounterViewProps
     } finally {
       setUpdatingOrderId(null)
     }
+  }
+
+  const handleTimeUpdate = () => {
+    // Refresh orders when time is updated
+    onOrderUpdate?.()
   }
 
   const formatTime = (dateString: string | null | undefined): string => {
@@ -243,25 +258,24 @@ export function CounterView({ orders, onClose, onOrderUpdate }: CounterViewProps
     const canUpdateStatus = nextStatus && nextStatus !== order.status && 
       (order.status === 'submitted' || order.status === 'accepted' || order.status === 'ready' || order.status === 'in_progress')
 
-    // Highlight new orders with a subtle accent
-    const isNewOrder = order.status === 'submitted'
+    const edgeColor = statusEdgeColors[order.status]
 
     return (
       <Card
         key={order.id}
         className={cn(
           "group relative overflow-hidden transition-all duration-200",
-          "border border-border/60 hover:border-border hover:shadow-md",
-          "bg-card",
-          isNewOrder && "border-l-4 border-l-green-500"
+          "border border-border/60 hover:shadow-md",
+          "bg-card"
         )}
         onClick={() => {
           setSelectedOrderId(order.id)
           setDetailDialogOpen(true)
         }}
       >
+        <div className={cn("absolute left-0 top-0 bottom-0 w-[10px] rounded-l-lg", edgeColor)} />
         <CardContent 
-          className="px-6 py-4 cursor-pointer"
+          className="px-6 py-4 cursor-pointer relative"
         >
           {/* Main content row */}
           <div className="flex items-center justify-between gap-4">
@@ -291,9 +305,14 @@ export function CounterView({ orders, onClose, onOrderUpdate }: CounterViewProps
               </div>
             </div>
             
-            {/* Right: Action button */}
-            {canUpdateStatus && (
-              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            {/* Right: Time adjustment and Action button */}
+            <div className="shrink-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <TimeAdjustment
+                orderId={order.id}
+                currentMinutes={order.estimated_preparation_minutes}
+                onUpdate={handleTimeUpdate}
+              />
+              {canUpdateStatus && (
                 <Button
                   variant="default"
                   size="default"
@@ -313,8 +332,8 @@ export function CounterView({ orders, onClose, onOrderUpdate }: CounterViewProps
                     getStatusButtonLabel(order.status)
                   )}
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
