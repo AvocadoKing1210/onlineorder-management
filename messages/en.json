@@ -28,7 +28,14 @@
     "hidden": "Hidden",
     "createdAt": "Created At",
     "showingResults": "Showing {{from}} to {{to}} of {{total}} results",
-    "create": "Create"
+    "create": "Create",
+    "loading": "Loading...",
+    "filter": "Filter",
+    "clear": "Clear",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "clickToCopy": "Click to copy",
+    "justNow": "Just now"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -36,6 +43,10 @@
     "operations": "Operations",
     "orders": "Orders",
     "ordersTooltip": "Manage and track customer orders",
+    "orderHistory": "Order History",
+    "orderHistoryTooltip": "View and manage order history",
+    "incomingOrders": "Incoming Orders",
+    "incomingOrdersTooltip": "View and handle incoming orders",
     "qrCodes": "QR Codes",
     "qrCodesTooltip": "Generate and manage QR codes for dine-in",
     "content": "Content",
@@ -608,6 +619,94 @@
       "status": "Status",
       "updatedAt": "Updated At",
       "actions": "Actions"
+    }
+  },
+  "orders": {
+    "title": "Orders",
+    "description": "View and manage customer orders",
+    "noOrders": "No orders found",
+    "noOrdersDescription": "Orders will appear here when customers place them",
+    "viewDetails": "View Details",
+    "updateStatus": "Update Status",
+    "cancelOrder": "Cancel Order",
+    "statusUpdated": "Order status updated successfully",
+    "orderCancelled": "Order cancelled successfully",
+    "updateFailed": "Failed to update order status",
+    "cancelFailed": "Failed to cancel order",
+    "loadFailed": "Failed to load orders",
+    "cancelConfirm": "Cancel Order?",
+    "cancelConfirmDescription": "This will cancel the order. This action cannot be undone.",
+    "fields": {
+      "orderId": "Order ID",
+      "customer": "Customer",
+      "mode": "Mode",
+      "status": "Status",
+      "total": "Total",
+      "itemsCount": "Items",
+      "submittedAt": "Submitted At",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At",
+      "specialInstructions": "Special Instructions",
+      "estimatedPreparationTime": "Estimated Preparation Time",
+      "estimatedArrivalTime": "Estimated Arrival Time"
+    },
+    "status": {
+      "created": "Created",
+      "submitted": "Submitted",
+      "accepted": "Accepted",
+      "in_progress": "In Progress",
+      "ready": "Ready",
+      "completed": "Completed",
+      "cancelled_by_user": "Cancelled by Customer",
+      "cancelled_by_store": "Cancelled by Store"
+    },
+    "mode": {
+      "dine_in": "Dine In",
+      "takeout": "Takeout",
+      "delivery": "Delivery",
+      "view_only": "View Only"
+    },
+    "filters": {
+      "allStatuses": "All Statuses",
+      "allModes": "All Modes",
+      "search": "Search orders...",
+      "dateFrom": "From Date",
+      "dateTo": "To Date"
+    },
+    "table": {
+      "orderId": "Order ID",
+      "customer": "Customer",
+      "mode": "Mode",
+      "status": "Status",
+      "total": "Total",
+      "items": "Items",
+      "submittedAt": "Submitted At",
+      "updatedAt": "Updated At",
+      "actions": "Actions"
+    },
+    "detail": {
+      "title": "Order Details",
+      "orderInformation": "Order Information",
+      "items": "Items",
+      "statusHistory": "Status History",
+      "totals": "Totals",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "fees": "Fees",
+      "tip": "Tip",
+      "total": "Total",
+      "noItems": "No items in this order",
+      "noHistory": "No status history available"
+    },
+    "statusUpdate": {
+      "title": "Update Order Status",
+      "newStatus": "New Status",
+      "message": "Message (Optional)",
+      "messagePlaceholder": "Add a note about this status change...",
+      "estimatedPreparationTime": "Estimated Preparation Time (minutes)",
+      "estimatedArrivalTime": "Estimated Arrival Time",
+      "update": "Update Status",
+      "cancel": "Cancel"
     }
   }
 }

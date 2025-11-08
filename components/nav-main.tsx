@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { usePathname } from "next/navigation"
 import { IconChevronRight, type Icon } from "@tabler/icons-react"
 import {
   Collapsible,
@@ -56,6 +57,8 @@ export function NavMain({
 }: {
   items: (NavItem | NavSection)[]
 }) {
+  const pathname = usePathname()
+  
   return (
     <>
       {items.map((item, index) => {
@@ -92,11 +95,13 @@ export function NavMain({
         <SidebarMenu>
                     {item.items.map((navItem) => {
                     if (navItem.items) {
+                      // Keep section open if current pathname starts with the navItem url
+                      const isOpen = pathname?.startsWith(navItem.url) || false
                       return (
                         <Collapsible
                           key={navItem.title}
                           asChild
-                          defaultOpen={navItem.url === "/menu"}
+                          defaultOpen={isOpen}
                           className="group/collapsible"
                         >
                           <SidebarMenuItem>

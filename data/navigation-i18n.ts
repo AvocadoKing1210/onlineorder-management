@@ -35,6 +35,20 @@ export function getNavigationData(locale: Locale): (NavItem | NavSection)[] {
           url: "/orders",
           icon: ClipboardList,
           tooltip: translations("navigation.ordersTooltip"),
+          items: [
+            {
+              title: translations("navigation.orderHistory"),
+              url: "/orders/history",
+              icon: IconList,
+              tooltip: translations("navigation.orderHistoryTooltip"),
+            },
+            {
+              title: translations("navigation.incomingOrders"),
+              url: "/orders/incoming",
+              icon: IconBox,
+              tooltip: translations("navigation.incomingOrdersTooltip"),
+            },
+          ],
         },
         {
           title: translations("navigation.qrCodes"),
