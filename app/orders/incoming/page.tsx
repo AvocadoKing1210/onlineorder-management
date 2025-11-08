@@ -95,6 +95,7 @@ export default function IncomingOrdersPage() {
             <CounterView
               orders={unfinishedOrders}
               onClose={() => setShowCounterView(false)}
+              onOrderUpdate={loadOrders}
             />
           ) : (
             <>

@@ -11,16 +11,20 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useTranslation } from '@/components/i18n-text'
 import {
   type OrderWithDetails,
+  type Order,
   getOrderById,
+  updateOrderStatus,
 } from '@/lib/api/orders'
 import { OrderStatusBadge } from './order-status-badge'
 import { OrderModeBadge } from './order-mode-badge'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { IconInfoCircle, IconPackage, IconHistory } from '@tabler/icons-react'
+import { IconInfoCircle, IconPackage, IconHistory, IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react'
 
 interface OrderDetailDialogProps {
   open: boolean
@@ -45,6 +49,8 @@ export function OrderDetailDialog({
   const [selectedCategory, setSelectedCategory] = useState<OrderDetailCategory>('information')
   const [order, setOrder] = useState<OrderWithDetails | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
 
   const getCategories = (): CategoryConfig[] => [
     {
@@ -69,8 +75,19 @@ export function OrderDetailDialog({
       loadOrder()
     } else {
       setOrder(null)
+      setExpandedItems(new Set())
     }
   }, [open, orderId])
+
+  // Initialize expanded state for items with modifiers when order loads
+  useEffect(() => {
+    if (order?.items) {
+      const itemsWithModifiers = order.items
+        .filter(item => item.modifiers && item.modifiers.length > 0)
+        .map(item => item.id)
+      setExpandedItems(new Set(itemsWithModifiers))
+    }
+  }, [order])
 
   const loadOrder = async () => {
     if (!orderId) return
@@ -101,6 +118,12 @@ export function OrderDetailDialog({
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  const formatTime = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
   const formatRelativeTime = (dateString: string | null | undefined): string => {
     if (!dateString) return '-'
     const date = new Date(dateString)
@@ -115,6 +138,51 @@ export function OrderDetailDialog({
     if (diffHours < 24) return `${diffHours}h ago`
     if (diffDays < 7) return `${diffDays}d ago`
     return formatDate(dateString)
+  }
+
+  const getNextStatus = (currentStatus: Order['status']): Order['status'] | null => {
+    const statusFlow: Record<Order['status'], Order['status']> = {
+      submitted: 'accepted',
+      accepted: 'ready',
+      ready: 'completed',
+      in_progress: 'ready',
+      created: 'submitted',
+      completed: 'completed',
+      cancelled_by_user: 'cancelled_by_user',
+      cancelled_by_store: 'cancelled_by_store',
+    }
+    return statusFlow[currentStatus] || null
+  }
+
+  const getStatusButtonLabel = (currentStatus: Order['status']): string => {
+    const nextStatus = getNextStatus(currentStatus)
+    if (nextStatus === 'accepted') return 'Accept'
+    if (nextStatus === 'ready') return 'Ready'
+    if (nextStatus === 'completed') return 'Finish'
+    return 'Update'
+  }
+
+  const handleStatusUpdate = async () => {
+    if (!order) return
+    
+    const nextStatus = getNextStatus(order.status)
+    if (!nextStatus || nextStatus === order.status) return
+
+    try {
+      setIsUpdatingStatus(true)
+      const updatedOrder = await updateOrderStatus(order.id, {
+        status: nextStatus,
+        message: `Status updated to ${nextStatus}`,
+      })
+      
+      setOrder({ ...order, ...updatedOrder })
+      toast.success(`Order status updated to ${nextStatus}`)
+    } catch (error) {
+      console.error('Error updating order status:', error)
+      toast.error('Failed to update order status')
+    } finally {
+      setIsUpdatingStatus(false)
+    }
   }
 
   const renderInformation = () => {
@@ -266,59 +334,104 @@ export function OrderDetailDialog({
     }
 
     return (
-      <div className="space-y-4">
-        {order.items.map((item) => (
-          <div key={item.id} className="border rounded-lg p-4 space-y-2">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <div className="font-medium">{item.item_name}</div>
-                {item.item_description && (
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {item.item_description}
+      <div className="space-y-0">
+        {order.items.map((item, index) => {
+          // Group modifiers by modifier_group_name
+          const groupedModifiers = item.modifiers?.reduce((acc, modifier) => {
+            const groupName = modifier.modifier_group_name
+            if (!acc[groupName]) {
+              acc[groupName] = []
+            }
+            acc[groupName].push(modifier)
+            return acc
+          }, {} as Record<string, typeof item.modifiers>) || {}
+
+          const hasModifiers = Object.keys(groupedModifiers).length > 0
+          const isExpanded = expandedItems.has(item.id)
+          const toggleExpanded = () => {
+            setExpandedItems(prev => {
+              const newSet = new Set(prev)
+              if (newSet.has(item.id)) {
+                newSet.delete(item.id)
+              } else {
+                newSet.add(item.id)
+              }
+              return newSet
+            })
+          }
+
+          return (
+            <div key={item.id}>
+              {index > 0 && <Separator className="my-4" />}
+              <div className="space-y-3">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    {item.quantity > 1 && (
+                      <Badge variant="default" className="bg-primary text-primary-foreground font-semibold shrink-0">
+                        {item.quantity}x
+                      </Badge>
+                    )}
+                    <div className="font-medium text-base">{item.item_name}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-medium">
+                      {formatCurrency(item.line_total)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatCurrency(item.unit_price)} {item.quantity > 1 && `× ${item.quantity}`}
+                    </div>
+                  </div>
+                </div>
+
+                {hasModifiers && (
+                  <Collapsible open={isExpanded} onOpenChange={toggleExpanded}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      <span>Options</span>
+                      {isExpanded ? (
+                        <IconChevronUp className="h-4 w-4" />
+                      ) : (
+                        <IconChevronDown className="h-4 w-4" />
+                      )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2 space-y-2">
+                      {Object.entries(groupedModifiers).map(([groupName, modifiers]) => (
+                        <div key={groupName} className="pl-2 border-l-2 border-border/50">
+                          <div className="text-xs font-medium text-muted-foreground mb-1">
+                            {groupName}
+                          </div>
+                          <div className="space-y-1">
+                            {modifiers.map((modifier) => (
+                              <div key={modifier.id} className="flex justify-between text-sm">
+                                <span className="text-foreground">
+                                  {modifier.modifier_option_name}
+                                </span>
+                                {parseFloat(modifier.price_delta) !== 0 && (
+                                  <span className={cn(
+                                    parseFloat(modifier.price_delta) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                  )}>
+                                    {parseFloat(modifier.price_delta) > 0 ? '+' : ''}
+                                    {formatCurrency(modifier.price_delta)}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
+                {item.notes && (
+                  <div className="pt-2 border-t">
+                    <div className="text-xs text-muted-foreground mb-1">Notes:</div>
+                    <div className="text-sm">{item.notes}</div>
                   </div>
                 )}
               </div>
-              <div className="text-right">
-                <div className="font-medium">
-                  {formatCurrency(item.line_total)}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {formatCurrency(item.unit_price)} × {item.quantity}
-                </div>
-              </div>
             </div>
-
-            {item.modifiers && item.modifiers.length > 0 && (
-              <div className="mt-2 pt-2 border-t">
-                <div className="text-xs text-muted-foreground mb-1">Modifiers:</div>
-                <div className="space-y-1">
-                  {item.modifiers.map((modifier) => (
-                    <div key={modifier.id} className="flex justify-between text-xs">
-                      <span>
-                        {modifier.modifier_group_name}: {modifier.modifier_option_name}
-                      </span>
-                      {parseFloat(modifier.price_delta) !== 0 && (
-                        <span className={cn(
-                          parseFloat(modifier.price_delta) > 0 ? 'text-green-600' : 'text-red-600'
-                        )}>
-                          {parseFloat(modifier.price_delta) > 0 ? '+' : ''}
-                          {formatCurrency(modifier.price_delta)}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {item.notes && (
-              <div className="mt-2 pt-2 border-t">
-                <div className="text-xs text-muted-foreground">Notes:</div>
-                <div className="text-xs mt-1">{item.notes}</div>
-              </div>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
     )
   }
@@ -392,56 +505,119 @@ export function OrderDetailDialog({
       <DialogContent
         className="max-w-5xl h-[80vh] p-0 flex flex-col overflow-hidden sm:max-w-5xl max-w-[calc(100%-3rem)] sm:h-[72vh]"
       >
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b">
-          <DialogTitle className="text-lg sm:text-xl">
-            {t('orders.detail.title')}
-          </DialogTitle>
-          <DialogDescription>
-            {order && `Order ${order.id.substring(0, 8)}...`}
-          </DialogDescription>
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b relative">
+          <div className="pr-12">
+            <DialogTitle className="text-lg sm:text-xl">
+              {t('orders.detail.title')}
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-2 flex-wrap">
+              {order && (
+                <>
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {order.id}
+                  </Badge>
+                  {order.estimated_arrival_at && (
+                    <>
+                      <span className="text-muted-foreground">|</span>
+                      <span className="text-sm">
+                        Due {formatTime(order.estimated_arrival_at)}
+                      </span>
+                    </>
+                  )}
+                  {(order.estimated_arrival_at || order.user_profile?.name || order.user_profile?.email) && (
+                    <span className="text-muted-foreground">|</span>
+                  )}
+                  <span className="text-sm font-medium">
+                    {order.user_profile?.name || order.user_profile?.email || `User ${order.user_id.substring(0, 8)}`}
+                  </span>
+                </>
+              )}
+            </DialogDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 h-8 w-8"
+            onClick={() => onOpenChange(false)}
+          >
+            <IconX className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
         </DialogHeader>
 
-        {isLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-muted-foreground">{t('common.loading')}</div>
-          </div>
-        ) : order ? (
-          <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
-            {/* Side Navigation */}
-            <div className="w-full sm:w-64 border-b sm:border-b-0 sm:border-r bg-muted/30 flex-shrink-0 overflow-x-auto sm:overflow-y-auto">
-              <nav className="p-3 sm:p-4 flex sm:flex-col gap-1 sm:space-y-1">
-                {getCategories().map((category) => {
-                  const Icon = category.icon
-                  const isActive = selectedCategory === category.id
-                  return (
-                    <button
-                      key={category.id}
-                      onClick={() => setSelectedCategory(category.id)}
-                      className={cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
-                        isActive
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{category.label}</span>
-                    </button>
-                  )
-                })}
-              </nav>
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {isLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-muted-foreground">{t('common.loading')}</div>
             </div>
+          ) : order ? (
+            <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
+              {/* Side Navigation */}
+              <div className="w-full sm:w-64 border-b sm:border-b-0 sm:border-r bg-muted/30 flex-shrink-0 overflow-x-auto sm:overflow-y-auto">
+                <nav className="p-3 sm:p-4 flex sm:flex-col gap-1 sm:space-y-1">
+                  {getCategories().map((category) => {
+                    const Icon = category.icon
+                    const isActive = selectedCategory === category.id
+                    return (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
+                          isActive
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{category.label}</span>
+                      </button>
+                    )
+                  })}
+                </nav>
+              </div>
 
-            {/* Content Area */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-4 sm:p-6">{renderContent()}</div>
+              {/* Content Area */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-4 sm:p-6 pb-20">{renderContent()}</div>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-muted-foreground">Order not found</div>
-          </div>
-        )}
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-muted-foreground">Order not found</div>
+            </div>
+          )}
+          
+          {/* Bottom Button Row */}
+          {order && (() => {
+            const nextStatus = getNextStatus(order.status)
+            const canUpdateStatus = nextStatus && nextStatus !== order.status && 
+              (order.status === 'submitted' || order.status === 'accepted' || order.status === 'ready' || order.status === 'in_progress')
+            
+            if (!canUpdateStatus) return null
+            
+            return (
+              <div className="border-t bg-background px-4 sm:px-6 py-4 flex justify-end shrink-0">
+                <Button
+                  variant="default"
+                  size="default"
+                  onClick={handleStatusUpdate}
+                  disabled={isUpdatingStatus}
+                  className="h-10 px-6"
+                >
+                  {isUpdatingStatus ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Updating...
+                    </span>
+                  ) : (
+                    getStatusButtonLabel(order.status)
+                  )}
+                </Button>
+              </div>
+            )
+          })()}
+        </div>
       </DialogContent>
     </Dialog>
   )
