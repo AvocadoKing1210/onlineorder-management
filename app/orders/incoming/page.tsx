@@ -9,6 +9,7 @@ import {
   getOrders,
   type Order,
 } from '@/lib/api/orders'
+import { getSupabaseClient } from '@/lib/auth'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { IconLayoutGrid } from '@tabler/icons-react'
@@ -81,6 +82,74 @@ export default function IncomingOrdersPage() {
 
   useEffect(() => {
     loadOrders()
+  }, [])
+
+  // Set up Realtime subscription for order updates
+  useEffect(() => {
+    let channel: any = null
+
+    const setupRealtime = async () => {
+      try {
+        const supabase = await getSupabaseClient()
+        
+        // Subscribe to order table changes
+        channel = supabase
+          .channel('incoming-orders-updates')
+          .on(
+            'postgres_changes',
+            {
+              event: '*', // Listen to INSERT, UPDATE, DELETE
+              schema: 'public',
+              table: 'order',
+              // RLS will automatically filter - Business Owners/Admins see all orders
+            },
+            async (payload) => {
+              console.log('🔔 Realtime order update:', payload.eventType, payload.new)
+              
+              // Reload orders when changes occur
+              // This ensures we get the latest data with all joins and filters
+              await loadOrders()
+              
+              // Show toast notification for new orders
+              if (payload.eventType === 'INSERT') {
+                const newOrder = payload.new as Order
+                toast.success(`New order received: ${newOrder.reference_number || newOrder.id.slice(0, 8)}`)
+              } else if (payload.eventType === 'UPDATE') {
+                const updatedOrder = payload.new as Order
+                const oldOrder = payload.old as Order
+                if (updatedOrder.status !== oldOrder.status) {
+                  toast.info(`Order ${updatedOrder.reference_number || updatedOrder.id.slice(0, 8)} status: ${oldOrder.status} → ${updatedOrder.status}`)
+                }
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('📡 Realtime subscription status:', status)
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ Subscribed to order updates')
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('❌ Realtime subscription error')
+              toast.error('Failed to connect to real-time updates')
+            }
+          })
+      } catch (error) {
+        console.error('Error setting up Realtime subscription:', error)
+        toast.error('Failed to set up real-time updates')
+      }
+    }
+
+    setupRealtime()
+
+    // Cleanup: unsubscribe when component unmounts
+    return () => {
+      if (channel) {
+        const cleanup = async () => {
+          const supabase = await getSupabaseClient()
+          await supabase.removeChannel(channel)
+        }
+        cleanup().catch(console.error)
+      }
+    }
   }, [])
 
   return (
