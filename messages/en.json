@@ -296,6 +296,32 @@
       "moreTags": "More Tags ({{count}})",
       "viewDescription": "View description"
     },
+    "bulkImport": {
+      "title": "Bulk Import from Images",
+      "description": "Upload menu images and automatically extract menu items using AI",
+      "importFromImages": "Import from Images",
+      "uploadImages": "Upload Menu Images",
+      "uploadFiles": "Upload files",
+      "uploadHint": "Select one or more menu images to extract items from",
+      "uploadedImages": "Uploaded Images",
+      "processImages": "Process Images",
+      "processing": "Processing...",
+      "reviewItems": "Review {{total}} extracted items ({{selected}} selected)",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "importItems": "Import {{count}} Items",
+      "importing": "Importing",
+      "importingDescription": "Creating menu items, please wait...",
+      "importSuccess": "Successfully imported {{count}} items",
+      "importErrors": "{{count}} items failed to import",
+      "importFailed": "Failed to import items",
+      "noImages": "Please upload at least one image",
+      "noItemsSelected": "Please select at least one item to import",
+      "itemsWithoutCategories": "Some items are missing categories. Please assign categories to all items.",
+      "processFailed": "Failed to process images",
+      "loadCategoriesFailed": "Failed to load categories",
+      "fileProcessingRequired": "File upload is required for processing"
+    },
     "modifiers": {
       "groups": {
         "title": "Modifier Groups",
