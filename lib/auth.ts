@@ -19,8 +19,12 @@ export async function getAuth0Client(): Promise<Auth0Client> {
         typeof window !== 'undefined'
           ? window.location.origin + '/callback'
           : process.env.NEXT_PUBLIC_AUTH0_CALLBACK_URL || 'http://localhost:3000/callback',
+      // Enable refresh tokens for automatic token renewal
+      audience: process.env.NEXT_PUBLIC_AUTH0_AUDIENCE, // Optional: if using API audience
     },
     cacheLocation: 'localstorage',
+    // Enable automatic token refresh
+    useRefreshTokens: true,
   })
 
   return auth0Client
@@ -39,10 +43,19 @@ export async function getSupabaseClient() {
     {
       accessToken: async () => {
         try {
-          const claims = await auth0.getIdTokenClaims()
-          return (claims as any)?.__raw || ''
-        } catch {
-          return ''
+          // Use getTokenSilently() which automatically refreshes expired tokens
+          // This ensures we always get a valid token, refreshing if needed
+          const token = await auth0.getTokenSilently()
+          return token || ''
+        } catch (error) {
+          console.error('Error getting Auth0 token:', error)
+          // If token refresh fails, try to get claims as fallback
+          try {
+            const claims = await auth0.getIdTokenClaims()
+            return (claims as any)?.__raw || ''
+          } catch {
+            return ''
+          }
         }
       },
     }
@@ -87,6 +100,9 @@ export async function isAuthenticated(): Promise<boolean> {
 export async function getJWTClaims(): Promise<any> {
   try {
     const auth0 = await getAuth0Client()
+    // Use getTokenSilently() to ensure we have a valid token, then get claims
+    // This automatically refreshes expired tokens
+    await auth0.getTokenSilently()
     const claims = await auth0.getIdTokenClaims()
     return claims || null
   } catch {
@@ -132,4 +148,23 @@ export async function getUserId(): Promise<string | null> {
   }
 }
 
+/**
+ * Refresh the Auth0 token explicitly
+ * This is useful for proactive token refresh or when you want to ensure
+ * a fresh token before making API calls. The token will be automatically
+ * refreshed when needed via getTokenSilently(), but this can be called
+ * to refresh it ahead of time.
+ * 
+ * @returns The refreshed token, or null if refresh fails
+ */
+export async function refreshToken(): Promise<string | null> {
+  try {
+    const auth0 = await getAuth0Client()
+    const token = await auth0.getTokenSilently()
+    return token || null
+  } catch (error) {
+    console.error('Error refreshing token:', error)
+    return null
+  }
+}
 
