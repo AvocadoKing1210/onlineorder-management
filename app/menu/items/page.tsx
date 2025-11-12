@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { IconPlus } from '@tabler/icons-react'
+import { IconPlus, IconUpload } from '@tabler/icons-react'
 import { useTranslation } from '@/components/i18n-text'
 import { toast } from 'sonner'
 import { MenuItemDialog } from '@/components/menu/menu-item-dialog'
+import { MenuBulkImportDialog } from '@/components/menu/menu-bulk-import-dialog'
 import { MenuItemTable } from '@/components/menu/menu-item-table'
 import {
   getMenuItems,
@@ -44,6 +45,7 @@ export default function MenuItemsPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedVisibility, setSelectedVisibility] = useState<'all' | 'visible' | 'hidden'>('all')
   const [allItems, setAllItems] = useState<MenuItemWithCategory[]>([])
+  const [bulkImportOpen, setBulkImportOpen] = useState(false)
 
   const loadItems = async () => {
     try {
@@ -206,10 +208,16 @@ export default function MenuItemsPage() {
             {t('menu.items.pageDescription')}
           </p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
+            <IconUpload className="mr-2 h-4 w-4" />
+            {t('menu.bulkImport.importFromImages')}
+          </Button>
         <Button onClick={handleCreate}>
           <IconPlus className="mr-2 h-4 w-4" />
           {t('menu.items.createItem')}
         </Button>
+        </div>
       </div>
 
       {filteredItems.length === 0 && !isLoading && allItems.length === 0 ? (
@@ -247,6 +255,12 @@ export default function MenuItemsPage() {
         onOpenChange={setDialogOpen}
         item={editingItem}
         onSave={handleSave}
+      />
+
+      <MenuBulkImportDialog
+        open={bulkImportOpen}
+        onOpenChange={setBulkImportOpen}
+        onImportComplete={loadItems}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

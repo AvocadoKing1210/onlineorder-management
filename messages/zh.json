@@ -284,6 +284,32 @@
       "moreTags": "更多标签 ({{count}})",
       "viewDescription": "查看描述"
     },
+    "bulkImport": {
+      "title": "从图片批量导入",
+      "description": "上传菜单图片并使用AI自动提取菜单项",
+      "importFromImages": "从图片导入",
+      "uploadImages": "上传菜单图片",
+      "uploadFiles": "上传文件",
+      "uploadHint": "选择一个或多个菜单图片以提取项目",
+      "uploadedImages": "已上传的图片",
+      "processImages": "处理图片",
+      "processing": "处理中...",
+      "reviewItems": "查看 {{total}} 个提取的项目（已选择 {{selected}} 个）",
+      "selectAll": "全选",
+      "deselectAll": "取消全选",
+      "importItems": "导入 {{count}} 个项目",
+      "importing": "导入中",
+      "importingDescription": "正在创建菜单项，请稍候...",
+      "importSuccess": "成功导入 {{count}} 个项目",
+      "importErrors": "{{count}} 个项目导入失败",
+      "importFailed": "导入项目失败",
+      "noImages": "请至少上传一张图片",
+      "noItemsSelected": "请至少选择一个要导入的项目",
+      "itemsWithoutCategories": "某些项目缺少类别。请为所有项目分配类别。",
+      "processFailed": "处理图片失败",
+      "loadCategoriesFailed": "加载类别失败",
+      "fileProcessingRequired": "处理需要文件上传"
+    },
     "modifiers": {
       "groups": {
         "title": "修饰组",
