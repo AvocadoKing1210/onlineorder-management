@@ -14,6 +14,7 @@ export interface MenuItem {
   visible: boolean
   dietary_tags: string[] | null
   availability_notes: string | null
+  deleted_at: string | null
   created_at: string
   updated_at: string
   // Joined category data
@@ -65,6 +66,7 @@ export interface MenuItemFilters {
 /**
  * Fetch all menu items with optional filters
  * Includes category information via join
+ * Automatically excludes soft-deleted items (deleted_at IS NULL)
  */
 export async function getMenuItems(
   filters?: MenuItemFilters
@@ -77,6 +79,7 @@ export async function getMenuItems(
       *,
       menu_category(id, name)
     `)
+    .is('deleted_at', null) // Exclude soft-deleted items
     .order('category_id', { ascending: true })
     .order('position', { ascending: true })
 
@@ -110,6 +113,7 @@ export async function getMenuItems(
 
 /**
  * Fetch a single menu item by ID with category information
+ * Automatically excludes soft-deleted items (deleted_at IS NULL)
  */
 export async function getMenuItemById(
   id: string
@@ -122,6 +126,7 @@ export async function getMenuItemById(
       menu_category(id, name)
     `)
     .eq('id', id)
+    .is('deleted_at', null) // Exclude soft-deleted items
     .single()
 
   if (error) {
@@ -180,6 +185,7 @@ export async function createMenuItem(
 
 /**
  * Update a menu item
+ * Cannot update soft-deleted items (must restore first)
  */
 export async function updateMenuItem(
   id: string,
@@ -190,6 +196,7 @@ export async function updateMenuItem(
     .from('menu_item')
     .update(data)
     .eq('id', id)
+    .is('deleted_at', null) // Cannot update deleted items
     .select()
     .single()
 
@@ -198,18 +205,26 @@ export async function updateMenuItem(
   }
 
   if (!item) {
-    throw new Error('Failed to update menu item: No data returned')
+    throw new Error('Failed to update menu item: No data returned. Item may be deleted.')
   }
 
   return item
 }
 
 /**
- * Delete a menu item
+ * Soft delete a menu item
+ * Sets deleted_at timestamp instead of actually deleting the record
+ * This preserves data integrity for historical orders while hiding the item from management platform
  */
 export async function deleteMenuItem(id: string): Promise<void> {
   const supabase = await getSupabaseClient()
-  const { error } = await supabase.from('menu_item').delete().eq('id', id)
+  
+  // Soft delete by setting deleted_at timestamp
+  const { error } = await supabase
+    .from('menu_item')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null) // Only update if not already deleted
 
   if (error) {
     throw new Error(`Failed to delete menu item: ${error.message}`)
@@ -217,7 +232,26 @@ export async function deleteMenuItem(id: string): Promise<void> {
 }
 
 /**
+ * Restore a soft-deleted menu item
+ * Removes the deleted_at timestamp to make it visible again
+ */
+export async function restoreMenuItem(id: string): Promise<void> {
+  const supabase = await getSupabaseClient()
+  
+  const { error } = await supabase
+    .from('menu_item')
+    .update({ deleted_at: null })
+    .eq('id', id)
+    .not('deleted_at', 'is', null) // Only update if currently deleted
+
+  if (error) {
+    throw new Error(`Failed to restore menu item: ${error.message}`)
+  }
+}
+
+/**
  * Bulk update menu items
+ * Only updates non-deleted items
  */
 export async function bulkUpdateItems(
   ids: string[],
@@ -228,6 +262,7 @@ export async function bulkUpdateItems(
     .from('menu_item')
     .update(updates)
     .in('id', ids)
+    .is('deleted_at', null) // Only update non-deleted items
 
   if (error) {
     throw new Error(`Failed to bulk update menu items: ${error.message}`)
@@ -236,6 +271,7 @@ export async function bulkUpdateItems(
 
 /**
  * Get the next available position for a new item within a category
+ * Only considers non-deleted items
  */
 export async function getNextPosition(categoryId: string): Promise<number> {
   const supabase = await getSupabaseClient()
@@ -243,6 +279,7 @@ export async function getNextPosition(categoryId: string): Promise<number> {
     .from('menu_item')
     .select('position')
     .eq('category_id', categoryId)
+    .is('deleted_at', null) // Only count non-deleted items
     .order('position', { ascending: false })
     .limit(1)
 
@@ -257,6 +294,7 @@ export async function getNextPosition(categoryId: string): Promise<number> {
 /**
  * Reorder menu items within a category by updating their positions
  * Uses a two-phase approach to avoid unique constraint violations
+ * Only reorders non-deleted items
  * @param categoryId The category ID to reorder items within
  * @param itemIds Array of item IDs in the desired order (must all be in the same category)
  */
@@ -272,6 +310,7 @@ export async function reorderItems(categoryId: string, itemIds: string[]): Promi
       .update({ position: TEMP_OFFSET + index })
       .eq('id', id)
       .eq('category_id', categoryId)
+      .is('deleted_at', null) // Only reorder non-deleted items
 
     if (error) {
       throw new Error(`Failed to reorder items (phase 1): ${error.message}`)
@@ -286,6 +325,7 @@ export async function reorderItems(categoryId: string, itemIds: string[]): Promi
       .update({ position: index })
       .eq('id', id)
       .eq('category_id', categoryId)
+      .is('deleted_at', null) // Only reorder non-deleted items
 
     if (error) {
       throw new Error(`Failed to reorder items (phase 2): ${error.message}`)
@@ -354,12 +394,14 @@ export async function setMenuItemModifierGroups(
 /**
  * Get all unique dietary tags from all menu items
  * Returns a sorted array of all unique dietary tags used across all menu items
+ * Only includes tags from non-deleted items
  */
 export async function getAllDietaryTags(): Promise<string[]> {
   const supabase = await getSupabaseClient()
   const { data, error } = await supabase
     .from('menu_item')
     .select('dietary_tags')
+    .is('deleted_at', null) // Only include non-deleted items
     .not('dietary_tags', 'is', null)
 
   if (error) {
