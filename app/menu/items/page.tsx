@@ -266,11 +266,11 @@ export default function MenuItemsPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('menu.items.deleteConfirm')}</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-foreground">{t('menu.items.deleteConfirm')}</AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground">
               {t('menu.items.deleteConfirmDescription')}
               {itemToDelete && (
-                <span className="font-semibold block mt-2">
+                <span className="text-foreground font-semibold block mt-2">
                   &quot;{itemToDelete.name}&quot;
                 </span>
               )}
@@ -280,7 +280,7 @@ export default function MenuItemsPage() {
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-white hover:bg-destructive/90"
             >
               {t('menu.items.deleteItem')}
             </AlertDialogAction>

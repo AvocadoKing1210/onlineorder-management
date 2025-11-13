@@ -1,6 +1,7 @@
 'use client'
 
 import { getSupabaseClient, getUserId as getAuthUserId } from '@/lib/auth'
+import { withTokenRefresh } from '@/lib/api-utils'
 
 export interface Order {
   id: string
@@ -299,59 +300,61 @@ export async function updateOrderStatus(
   id: string,
   data: UpdateOrderStatusData
 ): Promise<Order> {
-  const supabase = await getSupabaseClient()
+  return await withTokenRefresh(async () => {
+    const supabase = await getSupabaseClient()
 
-  const updatePayload: any = {
-    status: data.status,
-  }
+    const updatePayload: any = {
+      status: data.status,
+    }
 
-  // Update status-specific timestamps
-  if (data.status === 'accepted') {
-    updatePayload.accepted_at = new Date().toISOString()
-  } else if (data.status === 'completed') {
-    updatePayload.completed_at = new Date().toISOString()
-  }
+    // Update status-specific timestamps
+    if (data.status === 'accepted') {
+      updatePayload.accepted_at = new Date().toISOString()
+    } else if (data.status === 'completed') {
+      updatePayload.completed_at = new Date().toISOString()
+    }
 
-  // Update estimated times if provided
-  if (data.estimated_preparation_minutes !== undefined) {
-    updatePayload.estimated_preparation_minutes = data.estimated_preparation_minutes
-  }
+    // Update estimated times if provided
+    if (data.estimated_preparation_minutes !== undefined) {
+      updatePayload.estimated_preparation_minutes = data.estimated_preparation_minutes
+    }
 
-  if (data.estimated_arrival_at !== undefined) {
-    updatePayload.estimated_arrival_at = data.estimated_arrival_at
-  }
+    if (data.estimated_arrival_at !== undefined) {
+      updatePayload.estimated_arrival_at = data.estimated_arrival_at
+    }
 
-  const { data: order, error } = await supabase
-    .from('order')
-    .update(updatePayload)
-    .eq('id', id)
-    .select()
-    .single()
+    const { data: order, error } = await supabase
+      .from('order')
+      .update(updatePayload)
+      .eq('id', id)
+      .select()
+      .single()
 
-  if (error) {
-    throw new Error(`Failed to update order status: ${error.message}`)
-  }
+    if (error) {
+      throw new Error(`Failed to update order status: ${error.message}`)
+    }
 
-  if (!order) {
-    throw new Error('Failed to update order status: No data returned')
-  }
+    if (!order) {
+      throw new Error('Failed to update order status: No data returned')
+    }
 
-  // Create status event if message is provided
-  // Note: The database trigger should create the event automatically, but we can add a message
-  if (data.message) {
-    const userId = await getUserId()
-    await supabase
-      .from('order_status_event')
-      .insert({
-        order_id: id,
-        status: data.status,
-        actor_type: 'staff',
-        actor_id: userId || null,
-        message: data.message,
-      })
-  }
+    // Create status event if message is provided
+    // Note: The database trigger should create the event automatically, but we can add a message
+    if (data.message) {
+      const userId = await getUserId()
+      await supabase
+        .from('order_status_event')
+        .insert({
+          order_id: id,
+          status: data.status,
+          actor_type: 'staff',
+          actor_id: userId || null,
+          message: data.message,
+        })
+    }
 
-  return order as Order
+    return order as Order
+  })
 }
 
 /**
@@ -363,27 +366,29 @@ export async function updateOrderEstimatedTime(
   id: string,
   estimated_preparation_minutes: number
 ): Promise<Order> {
-  const supabase = await getSupabaseClient()
+  return await withTokenRefresh(async () => {
+    const supabase = await getSupabaseClient()
 
-  // Update only the estimated_preparation_minutes, status remains unchanged
-  const { data: order, error } = await supabase
-    .from('order')
-    .update({
-      estimated_preparation_minutes,
-    })
-    .eq('id', id)
-    .select()
-    .single()
+    // Update only the estimated_preparation_minutes, status remains unchanged
+    const { data: order, error } = await supabase
+      .from('order')
+      .update({
+        estimated_preparation_minutes,
+      })
+      .eq('id', id)
+      .select()
+      .single()
 
-  if (error) {
-    throw new Error(`Failed to update order estimated time: ${error.message}`)
-  }
+    if (error) {
+      throw new Error(`Failed to update order estimated time: ${error.message}`)
+    }
 
-  if (!order) {
-    throw new Error('Failed to update order estimated time: No data returned')
-  }
+    if (!order) {
+      throw new Error('Failed to update order estimated time: No data returned')
+    }
 
-  return order as Order
+    return order as Order
+  })
 }
 
 /**
@@ -394,38 +399,40 @@ export async function cancelOrder(
   id: string,
   reason?: string
 ): Promise<Order> {
-  const supabase = await getSupabaseClient()
+  return await withTokenRefresh(async () => {
+    const supabase = await getSupabaseClient()
 
-  const { data: order, error } = await supabase
-    .from('order')
-    .update({
-      status: 'cancelled_by_store',
-    })
-    .eq('id', id)
-    .select()
-    .single()
+    const { data: order, error } = await supabase
+      .from('order')
+      .update({
+        status: 'cancelled_by_store',
+      })
+      .eq('id', id)
+      .select()
+      .single()
 
-  if (error) {
-    throw new Error(`Failed to cancel order: ${error.message}`)
-  }
+    if (error) {
+      throw new Error(`Failed to cancel order: ${error.message}`)
+    }
 
-  if (!order) {
-    throw new Error('Failed to cancel order: No data returned')
-  }
+    if (!order) {
+      throw new Error('Failed to cancel order: No data returned')
+    }
 
-  // Create status event with cancellation reason
-  const userId = await getUserId()
-  await supabase
-    .from('order_status_event')
-    .insert({
-      order_id: id,
-      status: 'cancelled_by_store',
-      actor_type: 'staff',
-      actor_id: userId || null,
-      message: reason || 'Order cancelled by store',
-    })
+    // Create status event with cancellation reason
+    const userId = await getUserId()
+    await supabase
+      .from('order_status_event')
+      .insert({
+        order_id: id,
+        status: 'cancelled_by_store',
+        actor_type: 'staff',
+        actor_id: userId || null,
+        message: reason || 'Order cancelled by store',
+      })
 
-  return order as Order
+    return order as Order
+  })
 }
 
 /**

@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js'
 import { createAuth0Client, type Auth0Client, type User } from '@auth0/auth0-spa-js'
 
 let auth0Client: Auth0Client | null = null
-let supabaseClient: ReturnType<typeof createClient> | null = null
 
 export async function getAuth0Client(): Promise<Auth0Client> {
   if (auth0Client) {
@@ -31,37 +30,53 @@ export async function getAuth0Client(): Promise<Auth0Client> {
 }
 
 export async function getSupabaseClient() {
-  if (supabaseClient) {
-    return supabaseClient
-  }
-
+  // Always create a fresh client to ensure we use the latest token retrieval logic
+  // This ensures token refresh works correctly
   const auth0 = await getAuth0Client()
 
-  supabaseClient = createClient(
+  return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       accessToken: async () => {
         try {
-          // Use getTokenSilently() which automatically refreshes expired tokens
-          // This ensures we always get a valid token, refreshing if needed
-          const token = await auth0.getTokenSilently()
-          return token || ''
+          // Use getTokenSilently() first - this automatically refreshes expired tokens
+          // when useRefreshTokens: true is set in the Auth0 client config
+          await auth0.getTokenSilently()
+          
+          // Get the ID token (not access token) - Supabase expects ID token JWT
+          // The ID token is a standard JWT with 3 parts (header.payload.signature)
+          const claims = await auth0.getIdTokenClaims()
+          const token = (claims as any)?.__raw
+          
+          if (!token) {
+            console.warn('No ID token available')
+            return ''
+          }
+          
+          // Verify it's a valid JWT format (3 parts separated by dots)
+          const parts = token.split('.')
+          if (parts.length !== 3) {
+            console.error(`Invalid JWT format: expected 3 parts, got ${parts.length}`)
+            return ''
+          }
+          
+          return token
         } catch (error) {
-          console.error('Error getting Auth0 token:', error)
-          // If token refresh fails, try to get claims as fallback
+          console.error('Error getting Auth0 ID token:', error)
+          // Try to refresh token and retry
           try {
+            await auth0.getTokenSilently({ cacheMode: 'off' }) // Force refresh
             const claims = await auth0.getIdTokenClaims()
             return (claims as any)?.__raw || ''
-          } catch {
+          } catch (refreshError) {
+            console.error('Error refreshing token:', refreshError)
             return ''
           }
         }
       },
     }
   )
-
-  return supabaseClient
 }
 
 export async function login() {

@@ -67,11 +67,11 @@ export async function processMenuImages(
     return TEST_MODE_RESPONSE
   }
 
-  const menuProcUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_MENU_PROC_URL
-
-  if (!menuProcUrl) {
-    throw new Error('NEXT_PUBLIC_CLOUDFLARE_MENU_PROC_URL is not configured')
-  }
+  // Use Next.js API route instead of direct Cloudflare Worker
+  // The API route handles the API key server-side
+  const apiUrl = typeof window !== 'undefined' 
+    ? '/api/menu/process'  // Client-side: use relative URL
+    : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/menu/process`  // Server-side: construct full URL
 
   const formData = new FormData()
 
@@ -84,9 +84,9 @@ export async function processMenuImages(
     })
   }
 
-  const response = await fetch(menuProcUrl, {
+  const response = await fetch(apiUrl, {
     method: 'POST',
-    body: formData,
+    body: formData, // FormData automatically sets Content-Type with boundary
   })
 
   if (!response.ok) {
@@ -122,11 +122,11 @@ export async function processMenuImages(
 export async function processMenuImageUrls(
   imageUrls: string[]
 ): Promise<BulkImportResponse> {
-  const menuProcUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_MENU_PROC_URL
-
-  if (!menuProcUrl) {
-    throw new Error('NEXT_PUBLIC_CLOUDFLARE_MENU_PROC_URL is not configured')
-  }
+  // Use Next.js API route instead of direct Cloudflare Worker
+  // The API route handles the API key server-side
+  const apiUrl = typeof window !== 'undefined' 
+    ? '/api/menu/process'  // Client-side: use relative URL
+    : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/menu/process`  // Server-side: construct full URL
 
   const body: { images?: string[]; image_url?: string } = {}
 
@@ -136,7 +136,7 @@ export async function processMenuImageUrls(
     body.images = imageUrls
   }
 
-  const response = await fetch(menuProcUrl, {
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

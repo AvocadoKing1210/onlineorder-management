@@ -187,11 +187,11 @@ export default function MenuCategoriesPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('menu.categories.deleteConfirm')}</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-foreground">{t('menu.categories.deleteConfirm')}</AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground">
               {t('menu.categories.deleteConfirmDescription')}
               {categoryToDelete && (
-                <span className="font-semibold block mt-2">
+                <span className="text-foreground font-semibold block mt-2">
                   &quot;{categoryToDelete.name}&quot;
                 </span>
               )}
@@ -201,7 +201,7 @@ export default function MenuCategoriesPage() {
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-white hover:bg-destructive/90"
             >
               {t('menu.categories.deleteCategory')}
             </AlertDialogAction>
