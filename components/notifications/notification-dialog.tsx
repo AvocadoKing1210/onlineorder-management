@@ -19,9 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { MinimalTiptap } from '@/components/ui/shadcn-io/minimal-tiptap'
 import { IconClock, IconSettings, IconCalendar } from '@tabler/icons-react'
 import {
   Tooltip,
@@ -194,6 +194,16 @@ export function NotificationDialog({
     return value
   }
 
+  // Helper function to strip HTML tags and check if there's meaningful content
+  const hasTextContent = (html: string): boolean => {
+    if (!html) return false
+    // Create a temporary div to parse HTML
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = html
+    const textContent = tempDiv.textContent || tempDiv.innerText || ''
+    return textContent.trim().length > 0
+  }
+
   const validate = (): boolean => {
     const newErrors: typeof errors = {}
 
@@ -201,7 +211,7 @@ export function NotificationDialog({
       newErrors.title = t('notifications.fields.titleRequired') || 'Title is required'
     }
 
-    if (!body.trim()) {
+    if (!hasTextContent(body)) {
       newErrors.body = t('notifications.fields.bodyRequired') || 'Body is required'
     }
 
@@ -252,7 +262,7 @@ export function NotificationDialog({
 
       const data: CreateNotificationData | UpdateNotificationData = {
         title: title.trim(),
-        body: body.trim(),
+        body: body, // Keep HTML content as-is from Tiptap
         audience,
         published_at: publishedDateTime.toISOString(),
         expiry_at: expiryDateTime ? expiryDateTime.toISOString() : null,
@@ -306,19 +316,19 @@ export function NotificationDialog({
           </Label>
           <span className="text-destructive text-sm">*</span>
         </div>
-        <Textarea
-          id="body"
-          value={body}
-          onChange={(e) => {
-            setBody(e.target.value)
+        <div className={errors.body ? 'border-destructive rounded-lg' : ''}>
+          <MinimalTiptap
+            content={body}
+            onChange={(content) => {
+              setBody(content)
             if (errors.body) {
               setErrors({ ...errors, body: undefined })
             }
           }}
-          placeholder={t('notifications.fields.bodyPlaceholder')}
-          rows={6}
+            placeholder={t('notifications.fields.bodyPlaceholder') || 'Start typing your notification body...'}
           className={errors.body ? 'border-destructive' : ''}
         />
+        </div>
         {errors.body && (
           <p className="text-sm text-destructive mt-0.5">{errors.body}</p>
         )}
