@@ -72,8 +72,16 @@ export default function IncomingOrdersPage() {
       
       setUnfinishedOrders(unfinished)
       setFinishedOrders(finished)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading incoming orders:', error)
+      
+      // Check if it's a session expiration error
+      if (error?.message?.includes('session has expired') || 
+          error?.message?.includes('Please log in again')) {
+        // Don't show toast - redirect is already happening
+        return
+      }
+      
       toast.error(t('orders.loadFailed') || 'Failed to load orders')
     } finally {
       setIsLoading(false)

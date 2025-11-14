@@ -97,103 +97,105 @@ export interface OrderWithDetails extends Order {
 export async function getOrders(
   filters?: OrderFilters
 ): Promise<Order[]> {
-  const supabase = await getSupabaseClient()
-  
-  // Build query - we'll count items separately
-  let query = supabase
-    .from('order')
-    .select('*')
-    .order('submitted_at', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false })
+  return await withTokenRefresh(async () => {
+    const supabase = await getSupabaseClient()
+    
+    // Build query - we'll count items separately
+    let query = supabase
+      .from('order')
+      .select('*')
+      .order('submitted_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
 
-  // Apply filters
-  if (filters?.status && filters.status !== 'all') {
-    query = query.eq('status', filters.status)
-  }
-
-  if (filters?.mode && filters.mode !== 'all') {
-    query = query.eq('mode', filters.mode)
-  }
-
-  if (filters?.date_from) {
-    query = query.gte('submitted_at', filters.date_from)
-  }
-
-  if (filters?.date_to) {
-    query = query.lte('submitted_at', filters.date_to)
-  }
-
-  if (filters?.search) {
-    query = query.or(
-      `id.ilike.%${filters.search}%,user_id.ilike.%${filters.search}%`
-    )
-  }
-
-  // Apply sorting
-  if (filters?.sort_by) {
-    const ascending = filters.sort_order === 'asc'
-    if (filters.sort_by === 'submitted_at') {
-      query = query.order('submitted_at', { ascending, nullsFirst: false })
-    } else if (filters.sort_by === 'created_at') {
-      query = query.order('created_at', { ascending })
-    } else if (filters.sort_by === 'total_amount') {
-      query = query.order('total_amount', { ascending })
-    } else if (filters.sort_by === 'status') {
-      query = query.order('status', { ascending })
+    // Apply filters
+    if (filters?.status && filters.status !== 'all') {
+      query = query.eq('status', filters.status)
     }
-  }
 
-  const { data, error } = await query
-
-  if (error) {
-    throw new Error(`Failed to fetch orders: ${error.message}`)
-  }
-
-  // Transform the data and fetch item counts and user profiles
-  const orders = (data || []) as Order[]
-  const orderIds = orders.map(o => o.id)
-  const userIds = [...new Set(orders.map(o => o.user_id))]
-
-  // Fetch item counts for all orders
-  const itemCounts = new Map<string, number>()
-  if (orderIds.length > 0) {
-    const { data: itemsData } = await supabase
-      .from('order_item')
-      .select('order_id')
-      .in('order_id', orderIds)
-
-    if (itemsData) {
-      itemsData.forEach((item: any) => {
-        const count = itemCounts.get(item.order_id) || 0
-        itemCounts.set(item.order_id, count + 1)
-      })
+    if (filters?.mode && filters.mode !== 'all') {
+      query = query.eq('mode', filters.mode)
     }
-  }
 
-  // Fetch user profiles for all unique user_ids
-  const profileMap = new Map<string, { name?: string; email?: string }>()
-  if (userIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from('user_profile')
-      .select('id, display_name, email')
-      .in('id', userIds)
+    if (filters?.date_from) {
+      query = query.gte('submitted_at', filters.date_from)
+    }
 
-    if (profiles) {
-      profiles.forEach((p: any) => {
-        profileMap.set(p.id, {
-          name: p.display_name || undefined,
-          email: p.email || undefined,
+    if (filters?.date_to) {
+      query = query.lte('submitted_at', filters.date_to)
+    }
+
+    if (filters?.search) {
+      query = query.or(
+        `id.ilike.%${filters.search}%,user_id.ilike.%${filters.search}%`
+      )
+    }
+
+    // Apply sorting
+    if (filters?.sort_by) {
+      const ascending = filters.sort_order === 'asc'
+      if (filters.sort_by === 'submitted_at') {
+        query = query.order('submitted_at', { ascending, nullsFirst: false })
+      } else if (filters.sort_by === 'created_at') {
+        query = query.order('created_at', { ascending })
+      } else if (filters.sort_by === 'total_amount') {
+        query = query.order('total_amount', { ascending })
+      } else if (filters.sort_by === 'status') {
+        query = query.order('status', { ascending })
+      }
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      throw new Error(`Failed to fetch orders: ${error.message}`)
+    }
+
+    // Transform the data and fetch item counts and user profiles
+    const orders = (data || []) as Order[]
+    const orderIds = orders.map(o => o.id)
+    const userIds = [...new Set(orders.map(o => o.user_id))]
+
+    // Fetch item counts for all orders
+    const itemCounts = new Map<string, number>()
+    if (orderIds.length > 0) {
+      const { data: itemsData } = await supabase
+        .from('order_item')
+        .select('order_id')
+        .in('order_id', orderIds)
+
+      if (itemsData) {
+        itemsData.forEach((item: any) => {
+          const count = itemCounts.get(item.order_id) || 0
+          itemCounts.set(item.order_id, count + 1)
         })
-      })
+      }
     }
-  }
 
-  // Combine all data
-  return orders.map(order => ({
-    ...order,
-    item_count: itemCounts.get(order.id) || 0,
-    user_profile: profileMap.get(order.user_id) || null,
-  }))
+    // Fetch user profiles for all unique user_ids
+    const profileMap = new Map<string, { name?: string; email?: string }>()
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('user_profile')
+        .select('id, display_name, email')
+        .in('id', userIds)
+
+      if (profiles) {
+        profiles.forEach((p: any) => {
+          profileMap.set(p.id, {
+            name: p.display_name || undefined,
+            email: p.email || undefined,
+          })
+        })
+      }
+    }
+
+    // Combine all data
+    return orders.map(order => ({
+      ...order,
+      item_count: itemCounts.get(order.id) || 0,
+      user_profile: profileMap.get(order.user_id) || null,
+    }))
+  })
 }
 
 /**
@@ -203,92 +205,94 @@ export async function getOrders(
 export async function getOrderById(
   id: string
 ): Promise<OrderWithDetails | null> {
-  const supabase = await getSupabaseClient()
-  
-  // Fetch order
-  const { data: orderData, error: orderError } = await supabase
-    .from('order')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (orderError) {
-    if (orderError.code === 'PGRST116') {
-      return null // Not found
-    }
-    throw new Error(`Failed to fetch order: ${orderError.message}`)
-  }
-
-  if (!orderData) {
-    return null
-  }
-
-  // Fetch order items
-  const { data: itemsData, error: itemsError } = await supabase
-    .from('order_item')
-    .select('*')
-    .eq('order_id', id)
-    .order('created_at', { ascending: true })
-
-  if (itemsError) {
-    throw new Error(`Failed to fetch order items: ${itemsError.message}`)
-  }
-
-  // Fetch modifiers for each item
-  const items: OrderItem[] = []
-  if (itemsData) {
-    for (const item of itemsData) {
-      const { data: modifiersData, error: modifiersError } = await supabase
-        .from('order_item_modifier')
-        .select('*')
-        .eq('order_item_id', item.id)
-        .order('created_at', { ascending: true })
-
-      if (modifiersError) {
-        throw new Error(`Failed to fetch modifiers: ${modifiersError.message}`)
-      }
-
-      items.push({
-        ...item,
-        modifiers: (modifiersData || []) as OrderItemModifier[],
-      })
-    }
-  }
-
-  // Fetch status events
-  const { data: eventsData, error: eventsError } = await supabase
-    .from('order_status_event')
-    .select('*')
-    .eq('order_id', id)
-    .order('created_at', { ascending: true })
-
-  if (eventsError) {
-    throw new Error(`Failed to fetch status events: ${eventsError.message}`)
-  }
-
-  // Fetch user profile
-  let userProfile = null
-  if (orderData.user_id) {
-    const { data: profileData } = await supabase
-      .from('user_profile')
-      .select('display_name, email')
-      .eq('id', orderData.user_id)
-      .single()
+  return await withTokenRefresh(async () => {
+    const supabase = await getSupabaseClient()
     
-    if (profileData) {
-      userProfile = {
-        name: profileData.display_name || undefined,
-        email: profileData.email || undefined,
+    // Fetch order
+    const { data: orderData, error: orderError } = await supabase
+      .from('order')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (orderError) {
+      if (orderError.code === 'PGRST116') {
+        return null // Not found
+      }
+      throw new Error(`Failed to fetch order: ${orderError.message}`)
+    }
+
+    if (!orderData) {
+      return null
+    }
+
+    // Fetch order items
+    const { data: itemsData, error: itemsError } = await supabase
+      .from('order_item')
+      .select('*')
+      .eq('order_id', id)
+      .order('created_at', { ascending: true })
+
+    if (itemsError) {
+      throw new Error(`Failed to fetch order items: ${itemsError.message}`)
+    }
+
+    // Fetch modifiers for each item
+    const items: OrderItem[] = []
+    if (itemsData) {
+      for (const item of itemsData) {
+        const { data: modifiersData, error: modifiersError } = await supabase
+          .from('order_item_modifier')
+          .select('*')
+          .eq('order_item_id', item.id)
+          .order('created_at', { ascending: true })
+
+        if (modifiersError) {
+          throw new Error(`Failed to fetch modifiers: ${modifiersError.message}`)
+        }
+
+        items.push({
+          ...item,
+          modifiers: (modifiersData || []) as OrderItemModifier[],
+        })
       }
     }
-  }
 
-  return {
-    ...orderData,
-    user_profile: userProfile,
-    items,
-    status_events: (eventsData || []) as OrderStatusEvent[],
-  } as OrderWithDetails
+    // Fetch status events
+    const { data: eventsData, error: eventsError } = await supabase
+      .from('order_status_event')
+      .select('*')
+      .eq('order_id', id)
+      .order('created_at', { ascending: true })
+
+    if (eventsError) {
+      throw new Error(`Failed to fetch status events: ${eventsError.message}`)
+    }
+
+    // Fetch user profile
+    let userProfile = null
+    if (orderData.user_id) {
+      const { data: profileData } = await supabase
+        .from('user_profile')
+        .select('display_name, email')
+        .eq('id', orderData.user_id)
+        .single()
+      
+      if (profileData) {
+        userProfile = {
+          name: profileData.display_name || undefined,
+          email: profileData.email || undefined,
+        }
+      }
+    }
+
+    return {
+      ...orderData,
+      user_profile: userProfile,
+      items,
+      status_events: (eventsData || []) as OrderStatusEvent[],
+    } as OrderWithDetails
+  })
 }
 
 /**
@@ -441,19 +445,21 @@ export async function cancelOrder(
 export async function getOrderStatusHistory(
   id: string
 ): Promise<OrderStatusEvent[]> {
-  const supabase = await getSupabaseClient()
-  
-  const { data, error } = await supabase
-    .from('order_status_event')
-    .select('*')
-    .eq('order_id', id)
-    .order('created_at', { ascending: true })
+  return await withTokenRefresh(async () => {
+    const supabase = await getSupabaseClient()
+    
+    const { data, error } = await supabase
+      .from('order_status_event')
+      .select('*')
+      .eq('order_id', id)
+      .order('created_at', { ascending: true })
 
-  if (error) {
-    throw new Error(`Failed to fetch status history: ${error.message}`)
-  }
+    if (error) {
+      throw new Error(`Failed to fetch status history: ${error.message}`)
+    }
 
-  return (data || []) as OrderStatusEvent[]
+    return (data || []) as OrderStatusEvent[]
+  })
 }
 
 /**

@@ -9,7 +9,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     isAuthenticated().then((ok) => {
-      if (ok) router.replace('/dashboard')
+      if (ok) {
+        // Check if there's a redirect path stored
+        const redirectPath = sessionStorage.getItem('redirectAfterLogin')
+        if (redirectPath) {
+          sessionStorage.removeItem('redirectAfterLogin')
+          router.replace(redirectPath)
+        } else {
+          router.replace('/dashboard')
+        }
+      }
     })
   }, [router])
 

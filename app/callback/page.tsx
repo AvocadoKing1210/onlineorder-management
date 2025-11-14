@@ -12,7 +12,15 @@ export default function CallbackPage() {
       try {
         const auth0 = await getAuth0Client()
         await auth0.handleRedirectCallback()
-        router.push('/')
+        
+        // Check if there's a redirect path stored
+        const redirectPath = sessionStorage.getItem('redirectAfterLogin')
+        if (redirectPath) {
+          sessionStorage.removeItem('redirectAfterLogin')
+          router.push(redirectPath)
+        } else {
+          router.push('/dashboard')
+        }
       } catch (error) {
         console.error('Error handling callback:', error)
         router.push('/?error=callback')
