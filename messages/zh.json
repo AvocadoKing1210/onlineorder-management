@@ -48,6 +48,8 @@
     "incomingOrdersTooltip": "查看和处理新进订单",
     "qrCodes": "二维码",
     "qrCodesTooltip": "生成和管理堂食二维码",
+    "floorMap": "餐桌布局",
+    "floorMapTooltip": "以可视化方式调整餐桌和区域",
     "content": "内容",
     "menu": "菜单",
     "menuTooltip": "管理菜单类别、项目和修改器",

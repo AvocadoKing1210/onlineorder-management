@@ -22,6 +22,7 @@ export function SiteHeader() {
       ["/dashboard", "navigation.dashboard"],
       ["/orders", "navigation.orders"],
       ["/qr-codes", "navigation.qrCodes"],
+      ["/floor-map", "Floor Map Editor"],
       ["/promotions", "navigation.promotions"],
       ["/notifications", "navigation.notifications"],
       ["/reviews", "navigation.reviews"],
@@ -32,6 +33,10 @@ export function SiteHeader() {
     // Check for exact match first
     for (const [route, key] of routeMap) {
       if (path === route) {
+        // Return direct string if it's not a translation key (doesn't contain dots)
+        if (!key.includes(".")) {
+          return key
+        }
         return t(key)
       }
     }
@@ -41,6 +46,10 @@ export function SiteHeader() {
     const sortedRoutes = [...routeMap].sort((a, b) => b[0].length - a[0].length)
     for (const [route, key] of sortedRoutes) {
       if (path.startsWith(route + "/")) {
+        // Return direct string if it's not a translation key (doesn't contain dots)
+        if (!key.includes(".")) {
+          return key
+        }
         return t(key)
       }
     }

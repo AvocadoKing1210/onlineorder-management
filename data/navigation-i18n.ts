@@ -10,6 +10,7 @@ import {
   IconBox,
   IconSettings,
   IconDotsCircleHorizontal,
+  IconLayout2,
   type Icon,
 } from "@tabler/icons-react"
 import { SquareMenu, Settings2, ClipboardList } from "lucide-react"
@@ -55,6 +56,12 @@ export function getNavigationData(locale: Locale): (NavItem | NavSection)[] {
           url: "/qr-codes",
           icon: IconQrcode,
           tooltip: translations("navigation.qrCodesTooltip"),
+        },
+        {
+          title: translations("navigation.floorMap"),
+          url: "/floor-map",
+          icon: IconLayout2,
+          tooltip: translations("navigation.floorMapTooltip"),
         },
       ],
     },

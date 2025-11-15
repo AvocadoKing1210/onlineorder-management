@@ -92,17 +92,32 @@ export default function IncomingOrdersPage() {
     loadOrders()
   }, [])
 
-  // Set up Realtime subscription for order updates
+  // Set up Realtime subscription for order updates with automatic retry
   useEffect(() => {
     let channel: any = null
+    let retryTimeoutId: NodeJS.Timeout | null = null
+    let retryCount = 0
+    const MAX_RETRIES = 5
+    const INITIAL_RETRY_DELAY = 1000 // 1 second
+    let isMounted = true
 
-    const setupRealtime = async () => {
+    const setupRealtime = async (attempt: number = 0) => {
+      // Don't retry if component is unmounted
+      if (!isMounted) return
+
       try {
+        // Clean up existing channel if any
+        if (channel) {
+          const supabase = await getSupabaseClient()
+          await supabase.removeChannel(channel).catch(() => {})
+          channel = null
+        }
+
         const supabase = await getSupabaseClient()
         
         // Subscribe to order table changes
         channel = supabase
-          .channel('incoming-orders-updates')
+          .channel(`incoming-orders-updates-${Date.now()}`) // Unique channel name to avoid conflicts
           .on(
             'postgres_changes',
             {
@@ -132,30 +147,94 @@ export default function IncomingOrdersPage() {
             }
           )
           .subscribe((status) => {
+            if (!isMounted) return
+
             console.log('📡 Realtime subscription status:', status)
             if (status === 'SUBSCRIBED') {
               console.log('✅ Subscribed to order updates')
+              // Reset retry count on successful subscription
+              retryCount = 0
             } else if (status === 'CHANNEL_ERROR') {
-              console.error('❌ Realtime subscription error')
-              toast.error('Failed to connect to real-time updates')
+              console.warn('❌ Realtime subscription error, will retry...')
+              
+              // Don't show error toast immediately, try to reconnect first
+              if (retryCount < MAX_RETRIES) {
+                retryCount++
+                // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+                const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount - 1)
+                console.log(`🔄 Retrying Realtime connection in ${delay}ms (attempt ${retryCount}/${MAX_RETRIES})...`)
+                
+                retryTimeoutId = setTimeout(() => {
+                  if (isMounted) {
+                    setupRealtime(retryCount)
+                  }
+                }, delay)
+              } else {
+                // Only show error after max retries
+                console.error('❌ Failed to establish Realtime connection after max retries')
+                toast.error('Failed to connect to real-time updates. Please refresh the page.')
+              }
+            } else if (status === 'TIMED_OUT' || status === 'CLOSED') {
+              console.warn(`⚠️ Realtime connection ${status.toLowerCase()}, will retry...`)
+              
+              if (retryCount < MAX_RETRIES) {
+                retryCount++
+                const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount - 1)
+                console.log(`🔄 Retrying Realtime connection in ${delay}ms (attempt ${retryCount}/${MAX_RETRIES})...`)
+                
+                retryTimeoutId = setTimeout(() => {
+                  if (isMounted) {
+                    setupRealtime(retryCount)
+                  }
+                }, delay)
+              }
             }
           })
       } catch (error) {
         console.error('Error setting up Realtime subscription:', error)
-        toast.error('Failed to set up real-time updates')
+        
+        // Retry on error
+        if (retryCount < MAX_RETRIES && isMounted) {
+          retryCount++
+          const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount - 1)
+          console.log(`🔄 Retrying Realtime setup in ${delay}ms (attempt ${retryCount}/${MAX_RETRIES})...`)
+          
+          retryTimeoutId = setTimeout(() => {
+            if (isMounted) {
+              setupRealtime(retryCount)
+            }
+          }, delay)
+        } else if (isMounted) {
+          toast.error('Failed to set up real-time updates. Please refresh the page.')
+        }
       }
     }
 
+    // Initial setup
     setupRealtime()
 
     // Cleanup: unsubscribe when component unmounts
     return () => {
+      isMounted = false
+      
+      // Clear any pending retry
+      if (retryTimeoutId) {
+        clearTimeout(retryTimeoutId)
+        retryTimeoutId = null
+      }
+      
+      // Remove channel
       if (channel) {
         const cleanup = async () => {
-          const supabase = await getSupabaseClient()
-          await supabase.removeChannel(channel)
+          try {
+            const supabase = await getSupabaseClient()
+            await supabase.removeChannel(channel)
+          } catch (error) {
+            // Ignore cleanup errors
+            console.warn('Error cleaning up Realtime channel:', error)
+          }
         }
-        cleanup().catch(console.error)
+        cleanup()
       }
     }
   }, [])

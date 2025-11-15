@@ -49,6 +49,8 @@
     "incomingOrdersTooltip": "View and handle incoming orders",
     "qrCodes": "QR Codes",
     "qrCodesTooltip": "Generate and manage QR codes for dine-in",
+    "floorMap": "Floor Map",
+    "floorMapTooltip": "Visualize and arrange dining room tables",
     "content": "Content",
     "menu": "Menu",
     "menuTooltip": "Manage menu categories, items, and modifiers",

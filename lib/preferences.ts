@@ -2,6 +2,26 @@
 
 import { getSupabaseClient } from './auth'
 import { getUserId } from './auth'
+import { withTokenRefresh } from './api-utils'
+
+/**
+ * Check if a Supabase error is a JWT expiration error
+ */
+function isJWTExpiredError(error: any): boolean {
+  if (!error) return false
+  
+  const errorMessage = error.message?.toLowerCase() || ''
+  const errorCode = error.code?.toLowerCase() || ''
+  
+  return (
+    errorMessage.includes('jwt expired') ||
+    errorMessage.includes('token expired') ||
+    errorMessage.includes('expired token') ||
+    errorCode === 'pgrst301' || // Supabase JWT expired error code
+    errorCode === 'invalid_jwt' ||
+    errorMessage.includes('invalid token')
+  )
+}
 
 export type ManagementPreference = {
   user_id: string
@@ -25,10 +45,10 @@ const DEFAULT_PREFERENCES: Omit<ManagementPreference, 'user_id'> = {
 }
 
 export async function getManagementPreferences(): Promise<ManagementPreference | null> {
-  try {
     const userId = await getUserId()
     if (!userId) return null
 
+  return await withTokenRefresh(async () => {
     const supabase = await getSupabaseClient()
     const { data, error } = await supabase
       .from('management_preference')
@@ -44,24 +64,28 @@ export async function getManagementPreferences(): Promise<ManagementPreference |
           ...DEFAULT_PREFERENCES,
         }
       }
+      
+      // If it's a JWT error, throw it so withTokenRefresh can handle it
+      if (isJWTExpiredError(error)) {
+        throw error
+      }
+      
+      // For other errors, log and return null
       console.error('Error fetching preferences:', error)
       return null
     }
 
     return data as ManagementPreference
-  } catch (error) {
-    console.error('Error getting preferences:', error)
-    return null
-  }
+  })
 }
 
 export async function saveManagementPreferences(
   preferences: Partial<Omit<ManagementPreference, 'user_id' | 'created_at' | 'updated_at'>>
 ): Promise<boolean> {
-  try {
     const userId = await getUserId()
     if (!userId) return false
 
+  return await withTokenRefresh(async () => {
     const supabase = await getSupabaseClient()
     const { error } = await supabase
       .from('management_preference')
@@ -77,14 +101,17 @@ export async function saveManagementPreferences(
       )
 
     if (error) {
+      // If it's a JWT error, throw it so withTokenRefresh can handle it
+      if (isJWTExpiredError(error)) {
+        throw error
+      }
+      
+      // For other errors, log and return false
       console.error('Error saving preferences:', error)
       return false
     }
 
     return true
-  } catch (error) {
-    console.error('Error saving preferences:', error)
-    return false
-  }
+  })
 }
 

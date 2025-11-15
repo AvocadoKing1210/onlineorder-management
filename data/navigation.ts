@@ -9,6 +9,7 @@ import {
   IconStar,
   IconBox,
   IconDotsCircleHorizontal,
+  IconLayout2,
   type Icon,
 } from "@tabler/icons-react"
 import { SquareMenu, ClipboardList } from "lucide-react"
@@ -55,6 +56,12 @@ export const navigationData: (NavItem | NavSection)[] = [
         url: "/qr-codes",
         icon: IconQrcode,
         tooltip: "Generate and manage QR codes for dine-in",
+      },
+      {
+        title: "Floor Map",
+        url: "/floor-map",
+        icon: IconLayout2,
+        tooltip: "Visualize and arrange dining room tables",
       },
     ],
   },
