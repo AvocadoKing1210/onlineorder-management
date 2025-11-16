@@ -1,7 +1,12 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { PlusCircle, RefreshCcw, ChevronDown, Menu, Square, Circle, Minus, Settings, Trash2, ChevronRight, Plus, Minus as MinusIcon, X } from "lucide-react"
+import { PlusCircle, ChevronDown, Menu, Square, Circle, Minus, Settings, Trash2, ChevronRight, Plus, Minus as MinusIcon, X, Building2, Pencil, Check } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { LBoothIcon, UBoothIcon, CornerBoothIcon, RectangularTableIcon, BarTableIcon } from "./booth-icons"
 import type { FloorTable, FloorTableType, FloorTableStatus, SeatSections } from "@/hooks/use-floor-plan"
 import { cn } from "@/lib/utils"
@@ -11,6 +16,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -43,6 +51,11 @@ import {
 } from "@/components/ui/drawer"
 import { useIsMobile } from "@/hooks/use-mobile"
 
+import type { FloorLayout, FloorLayoutVersion } from "@/lib/api/floor-map"
+import { GitBranch, CheckCircle2, Archive, FileEdit, Loader2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { getFloorLayouts, getFloorLayoutVersions, deleteFloorLayout, updateFloorLayout } from "@/lib/api/floor-map"
+
 type AccordionPanelsProps = {
   tables: FloorTable[]
   selectedTable: FloorTable | null
@@ -51,8 +64,13 @@ type AccordionPanelsProps = {
   onAddTable: (type: FloorTableType) => void
   onUpdateTable: (id: string, updates: Partial<FloorTable>) => void
   onRemoveTable: (id: string) => void
-  onResetLayout: () => void
   onMobileDetailsOpenChange?: (open: boolean) => void // Callback for mobile drawer state
+  currentLayout?: FloorLayout | null
+  currentVersion?: FloorLayoutVersion | null
+  onLayoutChange?: (layoutId: string) => void
+  onVersionChange?: (versionId: string) => void
+  onLayoutCreated?: (layout: FloorLayout) => void
+  loading?: boolean
 }
 
 const tableTypeOptions: { value: FloorTableType; label: string }[] = [
@@ -67,8 +85,32 @@ const tableTypeOptions: { value: FloorTableType; label: string }[] = [
 const statusOptions: { value: FloorTableStatus; label: string }[] = [
   { value: "available", label: "Available" },
   { value: "reserved", label: "Reserved" },
+  { value: "seated", label: "Seated" },
+  { value: "dirty", label: "Dirty" },
   { value: "blocked", label: "Blocked" },
+  { value: "maintenance", label: "Maintenance" },
 ]
+
+const statusConfig = {
+  draft: {
+    label: "Draft",
+    icon: FileEdit,
+    variant: "secondary" as const,
+    className: "text-blue-600 dark:text-blue-400",
+  },
+  published: {
+    label: "Published",
+    icon: CheckCircle2,
+    variant: "default" as const,
+    className: "text-green-600 dark:text-green-400",
+  },
+  archived: {
+    label: "Archived",
+    icon: Archive,
+    variant: "outline" as const,
+    className: "text-muted-foreground",
+  },
+}
 
 export function AccordionPanels({
   tables,
@@ -78,18 +120,30 @@ export function AccordionPanels({
   onAddTable,
   onUpdateTable,
   onRemoveTable,
-  onResetLayout,
   onMobileDetailsOpenChange,
+  currentLayout,
+  currentVersion,
+  onLayoutChange,
+  onVersionChange,
+  onLayoutCreated,
+  loading = false,
 }: AccordionPanelsProps) {
   const isMobile = useIsMobile()
   const [openPanel, setOpenPanel] = useState<"tables" | "details" | null>(null)
-  const [showResetDialog, setShowResetDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [tableToDelete, setTableToDelete] = useState<string | null>(null)
   const [mobileTablesOpen, setMobileTablesOpen] = useState(false)
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false)
   const manuallyClosedRef = useRef(false)
   const prevSelectedTableIdRef = useRef<string | null>(null)
+  const [layouts, setLayouts] = useState<FloorLayout[]>([])
+  const [versions, setVersions] = useState<FloorLayoutVersion[]>([])
+  const [loadingLayouts, setLoadingLayouts] = useState(false)
+  const [loadingVersions, setLoadingVersions] = useState(false)
+  const [showDeleteFloorDialog, setShowDeleteFloorDialog] = useState(false)
+  const [floorToDelete, setFloorToDelete] = useState<FloorLayout | null>(null)
+  const [editingFloorId, setEditingFloorId] = useState<string | null>(null)
+  const [editingFloorName, setEditingFloorName] = useState<string>("")
 
   // Open details panel when a table is selected, close it when no table is selected
   useEffect(() => {
@@ -128,6 +182,155 @@ export function AccordionPanels({
       onMobileDetailsOpenChange(mobileDetailsOpen)
     }
   }, [isMobile, mobileDetailsOpen, onMobileDetailsOpenChange])
+
+  // Load all layouts
+  useEffect(() => {
+    async function loadLayouts() {
+      try {
+        setLoadingLayouts(true)
+        const data = await getFloorLayouts()
+        setLayouts(data)
+      } catch (err) {
+        console.error("Failed to load layouts:", err)
+      } finally {
+        setLoadingLayouts(false)
+      }
+    }
+    loadLayouts()
+  }, [])
+
+  // Load versions when layout changes
+  useEffect(() => {
+    if (!currentLayout?.id) return
+
+    const layoutId = currentLayout.id
+    async function loadVersions() {
+      try {
+        setLoadingVersions(true)
+        const data = await getFloorLayoutVersions(layoutId)
+        setVersions(data)
+      } catch (err) {
+        console.error("Failed to load versions:", err)
+      } finally {
+        setLoadingVersions(false)
+      }
+    }
+    loadVersions()
+  }, [currentLayout?.id])
+
+  const handleLayoutSelect = (layoutId: string) => {
+    if (layoutId !== currentLayout?.id && onLayoutChange) {
+      onLayoutChange(layoutId)
+    }
+  }
+
+  const handleVersionSelect = (versionId: string) => {
+    if (versionId !== currentVersion?.id && onVersionChange) {
+      onVersionChange(versionId)
+    }
+  }
+
+  const handleCreateFloor = async () => {
+    try {
+      const { createFloorLayout } = await import("@/lib/api/floor-map")
+      const newLayout = await createFloorLayout({
+        name: `Floor ${layouts.length + 1}`,
+        slug: `floor-${layouts.length + 1}`,
+        description: "",
+        floor_level: layouts.length + 1,
+        is_default: false,
+      })
+      
+      // Refresh layouts list
+      const data = await getFloorLayouts()
+      setLayouts(data)
+      
+      // Switch to the new layout
+      if (onLayoutChange) {
+        onLayoutChange(newLayout.id)
+      } else if (onLayoutCreated) {
+        // Fallback: if onLayoutChange is not provided, use onLayoutCreated
+        onLayoutCreated(newLayout)
+      }
+    } catch (err) {
+      console.error("Failed to create floor:", err)
+    }
+  }
+
+  const handleDeleteFloor = async () => {
+    if (!floorToDelete) return
+
+    try {
+      const { deleteFloorLayout, getDefaultFloorLayout } = await import("@/lib/api/floor-map")
+      await deleteFloorLayout(floorToDelete.id)
+      
+      // Refresh layouts list
+      const data = await getFloorLayouts()
+      setLayouts(data)
+      
+      // If we deleted the current floor, switch to default or first available
+      if (floorToDelete.id === currentLayout?.id) {
+        const defaultLayout = await getDefaultFloorLayout()
+        if (defaultLayout && defaultLayout.id !== floorToDelete.id) {
+          if (onLayoutChange) {
+            onLayoutChange(defaultLayout.id)
+          }
+        } else if (data.length > 0 && data[0].id !== floorToDelete.id) {
+          if (onLayoutChange) {
+            onLayoutChange(data[0].id)
+          }
+        }
+      }
+      
+      setShowDeleteFloorDialog(false)
+      setFloorToDelete(null)
+    } catch (err) {
+      console.error("Failed to delete floor:", err)
+    }
+  }
+
+  const handleEditFloor = (layout: FloorLayout) => {
+    setEditingFloorId(layout.id)
+    setEditingFloorName(layout.name)
+  }
+
+  const handleSaveFloorName = async (layoutId: string) => {
+    if (!editingFloorName.trim()) {
+      // Reset if empty
+      setEditingFloorId(null)
+      setEditingFloorName("")
+      return
+    }
+
+    try {
+      await updateFloorLayout(layoutId, { name: editingFloorName.trim() })
+      
+      // Refresh layouts list
+      const data = await getFloorLayouts()
+      setLayouts(data)
+      
+      // Update current layout if it's the one being edited
+      if (layoutId === currentLayout?.id && onLayoutChange) {
+        // Trigger a refresh by calling onLayoutChange with the same ID
+        onLayoutChange(layoutId)
+      }
+      
+      setEditingFloorId(null)
+      setEditingFloorName("")
+    } catch (err) {
+      console.error("Failed to update floor name:", err)
+    }
+  }
+
+  const handleCancelEditFloor = () => {
+    setEditingFloorId(null)
+    setEditingFloorName("")
+  }
+
+  const currentStatus = currentVersion?.status
+    ? statusConfig[currentVersion.status as keyof typeof statusConfig]
+    : null
+  const StatusIcon = currentStatus?.icon || FileEdit
 
   const handleTablesToggle = () => {
     setOpenPanel(openPanel === "tables" ? null : "tables")
@@ -208,17 +411,6 @@ export function AccordionPanels({
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowResetDialog(true)
-                      setMobileTablesOpen(false)
-                    }}
-                  >
-                    <RefreshCcw className="mr-2 size-4" />
-                    Reset
-                  </Button>
                 </div>
                 <ScrollArea className="h-[50vh] rounded-md border">
                   <ul className="divide-y">
@@ -857,28 +1049,6 @@ export function AccordionPanels({
         </div>
 
 
-        {/* Reset Confirmation Dialog */}
-        <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Reset Floor Map Layout?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will reset the floor map to the default layout. All current tables and their positions will be removed. This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  onResetLayout()
-                  setShowResetDialog(false)
-                }}
-              >
-                Reset
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         {/* Delete Table Confirmation Dialog */}
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -913,6 +1083,205 @@ export function AccordionPanels({
   // Desktop: Show accordion panels
   return (
     <div className="absolute left-4 top-4 z-20 flex flex-col gap-1.5 w-80 hidden md:flex">
+      {/* Floor Selector */}
+      <div className="bg-background border rounded-md shadow-lg">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-muted/50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || loadingLayouts}
+            >
+              {loadingLayouts ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              ) : (
+                <span className="flex-1 text-left truncate text-sm">
+                  {currentLayout?.name || "Select Floor"}
+                </span>
+              )}
+              {!loadingLayouts && currentLayout?.floor_level !== undefined && currentLayout.floor_level !== 0 && (
+                <Badge variant="secondary" className="h-5 px-1.5 text-xs shrink-0">
+                  L{currentLayout.floor_level}
+                </Badge>
+              )}
+              {!loadingLayouts && (
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+            <DropdownMenuLabel>Select Floor</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {layouts.length === 0 ? (
+                <DropdownMenuItem disabled>
+                  {loadingLayouts ? "Loading..." : "No floors available"}
+                </DropdownMenuItem>
+              ) : (
+                layouts.map((layout) => (
+                  <DropdownMenuItem
+                    key={layout.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (editingFloorId !== layout.id) {
+                        handleLayoutSelect(layout.id)
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center justify-between group/item",
+                      layout.id === currentLayout?.id && "bg-accent"
+                    )}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {/* Checkmark icon at leftmost */}
+                      {layout.id === currentLayout?.id && (
+                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      )}
+                      {/* Floor level badge */}
+                      {layout.floor_level !== undefined && layout.floor_level !== 0 ? (
+                        <Badge variant="secondary" className="text-xs shrink-0">
+                          L{layout.floor_level}
+                        </Badge>
+                      ) : null}
+                      {/* Floor name with inline editing */}
+                      {editingFloorId === layout.id ? (
+                        <div className="flex items-center gap-1 flex-1 min-w-0">
+                          <Input
+                            value={editingFloorName}
+                            onChange={(e) => setEditingFloorName(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault()
+                                handleSaveFloorName(layout.id)
+                              } else if (e.key === "Escape") {
+                                e.preventDefault()
+                                handleCancelEditFloor()
+                              }
+                            }}
+                            className="h-6 text-xs px-1.5 py-0.5"
+                            autoFocus
+                          />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleSaveFloorName(layout.id)
+                                }}
+                                className="p-0.5 hover:bg-muted rounded"
+                              >
+                                <Check className="h-3.5 w-3.5 text-primary" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Save</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleCancelEditFloor()
+                                }}
+                                className="p-0.5 hover:bg-muted rounded"
+                              >
+                                <X className="h-3.5 w-3.5 text-muted-foreground" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Cancel</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="truncate">{layout.name}</span>
+                          {/* Default badge tailgating the name */}
+                          {layout.is_default && (
+                            <Badge variant="outline" className="text-xs shrink-0">
+                              Default
+                            </Badge>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/* Edit button */}
+                      {editingFloorId !== layout.id && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEditFloor(layout)
+                              }}
+                              className="opacity-0 group-hover/item:opacity-100 p-1 hover:bg-muted rounded transition-opacity"
+                            >
+                              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Edit Floor Name</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {/* Delete button */}
+                      {!layout.is_default && editingFloorId !== layout.id && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setFloorToDelete(layout)
+                                setShowDeleteFloorDialog(true)
+                              }}
+                              className="opacity-0 group-hover/item:opacity-100 p-1 hover:bg-destructive/10 rounded transition-opacity"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Delete Floor</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleCreateFloor} className="text-primary">
+              <Plus className="mr-2 h-4 w-4" />
+              Add New Floor
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Delete Floor Confirmation Dialog */}
+      <AlertDialog open={showDeleteFloorDialog} onOpenChange={setShowDeleteFloorDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Floor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{floorToDelete?.name}"? This will permanently delete the floor layout and all its versions. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setFloorToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteFloor}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Tables Panel */}
       <div className="bg-background border rounded-md shadow-lg overflow-hidden">
         <Button
@@ -962,14 +1331,6 @@ export function AccordionPanels({
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowResetDialog(true)}
-              >
-                <RefreshCcw className="mr-2 size-4" />
-                Reset
-              </Button>
             </div>
             <ScrollArea className="h-64 rounded-md border">
               <ul className="divide-y">
@@ -1617,28 +1978,6 @@ export function AccordionPanels({
         )}
       </div>
 
-      {/* Reset Confirmation Dialog */}
-      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reset Floor Map Layout?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will reset the floor map to the default layout. All current tables and their positions will be removed. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                onResetLayout()
-                setShowResetDialog(false)
-              }}
-            >
-              Reset
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Delete Table Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
