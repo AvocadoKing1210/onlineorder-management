@@ -91,6 +91,12 @@ const statusOptions: { value: FloorTableStatus; label: string }[] = [
   { value: "maintenance", label: "Maintenance" },
 ]
 
+const formatTableTypeLabel = (type: FloorTableType) =>
+  type
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+
 const statusConfig = {
   draft: {
     label: "Draft",
@@ -151,15 +157,13 @@ export function AccordionPanels({
     const isNewTable = selectedTableId !== prevSelectedTableIdRef.current
     
     if (selectedTable) {
-      // Reset manual close flag when a new table is selected
-      if (isNewTable) {
-        manuallyClosedRef.current = false
-      }
-      // Open details panel when a table is selected (unless it was manually closed)
-      if (!manuallyClosedRef.current) {
-        if (isMobile) {
-          setMobileDetailsOpen(true)
-        } else {
+      if (!isMobile) {
+        // Reset manual close flag when a new table is selected (desktop only)
+        if (isNewTable) {
+          manuallyClosedRef.current = false
+        }
+        // Open details panel automatically on desktop (unless manually closed)
+        if (!manuallyClosedRef.current) {
           setOpenPanel("details")
         }
       }
@@ -327,6 +331,11 @@ export function AccordionPanels({
     setEditingFloorName("")
   }
 
+  const handleMobileDetailsDrawerChange = (open: boolean) => {
+    setMobileDetailsOpen(open)
+    manuallyClosedRef.current = !open
+  }
+
   const currentStatus = currentVersion?.status
     ? statusConfig[currentVersion.status as keyof typeof statusConfig]
     : null
@@ -362,6 +371,10 @@ export function AccordionPanels({
 
   // Mobile: Show floating action buttons and drawers
   if (isMobile) {
+    const editButtonLabel = selectedTable
+      ? `Edit ${formatTableTypeLabel(selectedTable.type)} ${selectedTable.tableNumber}`
+      : "Edit Table"
+
     return (
       <>
         {/* Mobile Floating Action Buttons */}
@@ -458,7 +471,7 @@ export function AccordionPanels({
             </DrawerContent>
           </Drawer>
 
-          <Drawer open={mobileDetailsOpen} onOpenChange={setMobileDetailsOpen}>
+          <Drawer open={mobileDetailsOpen} onOpenChange={handleMobileDetailsDrawerChange}>
             <DrawerTrigger asChild>
               <Button
                 size="lg"
@@ -467,7 +480,7 @@ export function AccordionPanels({
                 className="flex-1 h-14 rounded-full shadow-lg disabled:opacity-50"
               >
                 <Settings className="mr-2 size-5" />
-                Details
+                {editButtonLabel}
               </Button>
             </DrawerTrigger>
             {selectedTable && (

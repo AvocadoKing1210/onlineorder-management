@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { GitBranch, CheckCircle2, Archive, FileEdit, Loader2, CircleArrowUp } from "lucide-react"
+import { Loader2, CircleArrowUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -17,12 +17,11 @@ import { cn } from "@/lib/utils"
 import type { FloorLayout, FloorLayoutVersion } from "@/lib/api/floor-map"
 import { getFloorLayoutVersions } from "@/lib/api/floor-map"
 
-interface CombinedVersionPublishProps {
+interface MobileVersionSelectorProps {
   currentLayout: FloorLayout | null
   currentVersion: FloorLayoutVersion | null
   onVersionChange?: (versionId: string) => void
   onPublish?: () => void
-  onPublishComplete?: () => void // Callback to refresh versions after publish
   loading?: boolean
   saving?: boolean
   publishing?: boolean
@@ -32,35 +31,31 @@ interface CombinedVersionPublishProps {
 const statusConfig = {
   draft: {
     label: "Draft",
-    icon: FileEdit,
     variant: "secondary" as const,
     className: "text-blue-600 dark:text-blue-400",
   },
   published: {
     label: "Published",
-    icon: CheckCircle2,
     variant: "outline" as const,
     className: "bg-white text-green-600 dark:bg-white dark:text-green-600 border-green-600",
   },
   archived: {
     label: "Archived",
-    icon: Archive,
     variant: "outline" as const,
     className: "text-muted-foreground",
   },
 }
 
-export function CombinedVersionPublish({
+export function MobileVersionSelector({
   currentLayout,
   currentVersion,
   onVersionChange,
   onPublish,
-  onPublishComplete,
   loading = false,
   saving = false,
   publishing = false,
   canPublish = false,
-}: CombinedVersionPublishProps) {
+}: MobileVersionSelectorProps) {
   const [versions, setVersions] = useState<FloorLayoutVersion[]>([])
   const [loadingVersions, setLoadingVersions] = useState(false)
 
@@ -87,7 +82,6 @@ export function CombinedVersionPublish({
   // Refresh versions after publish completes
   useEffect(() => {
     if (!publishing && currentLayout?.id) {
-      // Refresh when publishing state changes from true to false
       loadVersions()
     }
   }, [publishing, currentLayout?.id])
@@ -101,36 +95,28 @@ export function CombinedVersionPublish({
   const currentStatus = currentVersion?.status
     ? statusConfig[currentVersion.status as keyof typeof statusConfig]
     : null
-  const StatusIcon = currentStatus?.icon || FileEdit
 
   return (
-    <div className="flex items-center gap-0 rounded-md border bg-background shadow-md overflow-hidden">
-      {/* Version Selector - Left side */}
+    <div className="flex flex-col gap-0 rounded-lg border bg-background/95 backdrop-blur-sm p-0 shadow-lg overflow-hidden w-11.5">
+      {/* Version Selector - Top */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            size="sm"
-            className="rounded-r-none border-r border-border h-9 px-3 hover:bg-muted/50"
+            size="icon"
+            className="hover:bg-muted/50 rounded-b-none w-full h-11"
             disabled={loading || loadingVersions || !currentLayout}
           >
             {loadingVersions ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : null}
-            <span className="text-xs mr-1.5">
-              v{currentVersion?.version_number || "?"}
-            </span>
-            {currentStatus && (
-              <Badge
-                variant={currentStatus.variant}
-                className={cn("h-4 px-1.5 text-[10px]", currentStatus.className)}
-              >
-                {currentStatus.label}
-              </Badge>
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <span className="text-xs">
+                v{currentVersion?.version_number || "?"}
+              </span>
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuContent align="start" side="left" sideOffset={0} className="w-64 mr-1 mt-[-3px]">
           <DropdownMenuLabel>Select Version</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {!currentLayout ? (
@@ -161,10 +147,12 @@ export function CombinedVersionPublish({
                             )}
                           >
                             <div className="flex items-center gap-2">
-                              <span>Version {version.version_number}</span>
+                              <span className="text-xs">Version {version.version_number}</span>
                             </div>
                             {version.id === currentVersion?.id && (
-                              <CheckCircle2 className="h-4 w-4 text-primary" />
+                              <Badge variant="secondary" className="text-xs">
+                                Draft
+                              </Badge>
                             )}
                           </DropdownMenuItem>
                         )
@@ -195,7 +183,7 @@ export function CombinedVersionPublish({
                             )}
                           >
                             <div className="flex items-center gap-2">
-                              <span>Version {version.version_number}</span>
+                              <span className="text-xs">Version {version.version_number}</span>
                               {isActive && (
                                 <Badge variant="default" className="text-xs">
                                   Active
@@ -203,7 +191,12 @@ export function CombinedVersionPublish({
                               )}
                             </div>
                             {version.id === currentVersion?.id && (
-                              <CheckCircle2 className="h-4 w-4 text-primary" />
+                              <Badge
+                                variant="outline"
+                                className="bg-white text-green-600 border-green-600 text-xs"
+                              >
+                                Published
+                              </Badge>
                             )}
                           </DropdownMenuItem>
                         )
@@ -219,33 +212,35 @@ export function CombinedVersionPublish({
                   <DropdownMenuLabel className="text-xs text-muted-foreground">
                     Archived
                   </DropdownMenuLabel>
-                    {versions
-                      .filter((v) => v.status === "archived")
-                      .slice(0, 5) // Limit to 5 most recent archived
-                      .map((version) => {
-                        return (
-                          <DropdownMenuItem
-                            key={version.id}
-                            onClick={() => handleVersionSelect(version.id)}
-                            className={cn(
-                              "flex items-center justify-between",
-                              version.id === currentVersion?.id && "bg-accent"
+                  {versions
+                    .filter((v) => v.status === "archived")
+                    .slice(0, 5)
+                    .map((version) => {
+                      return (
+                        <DropdownMenuItem
+                          key={version.id}
+                          onClick={() => handleVersionSelect(version.id)}
+                          className={cn(
+                            "flex items-center justify-between",
+                            version.id === currentVersion?.id && "bg-accent"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs">Version {version.version_number}</span>
+                            {version.published_at && (
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(version.published_at).toLocaleDateString()}
+                              </span>
                             )}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span>Version {version.version_number}</span>
-                              {version.published_at && (
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(version.published_at).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                            {version.id === currentVersion?.id && (
-                              <CheckCircle2 className="h-4 w-4 text-primary" />
-                            )}
-                          </DropdownMenuItem>
-                        )
-                      })}
+                          </div>
+                          {version.id === currentVersion?.id && (
+                            <Badge variant="outline" className="text-xs">
+                              Archived
+                            </Badge>
+                          )}
+                        </DropdownMenuItem>
+                      )
+                    })}
                 </DropdownMenuGroup>
               )}
             </>
@@ -253,20 +248,24 @@ export function CombinedVersionPublish({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Publish Button - Right side */}
+      {/* Publish Button - Bottom */}
       <Button
         onClick={onPublish}
         disabled={saving || publishing || !canPublish}
-        size="sm"
-        className="rounded-l-none h-9 px-3"
-        variant={canPublish ? "default" : "ghost"}
+        size="icon"
+        className={cn(
+          "rounded-t-none rounded-b-lg w-full h-12",
+          canPublish 
+            ? "bg-black text-white hover:bg-black/90" 
+            : "hover:bg-muted/50"
+        )}
+        variant="ghost"
       >
         {publishing ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Loader2 className="size-4 animate-spin" />
         ) : (
-          <CircleArrowUp className="mr-2 h-4 w-4" />
+          <CircleArrowUp className="size-4" />
         )}
-        Publish
       </Button>
     </div>
   )

@@ -395,11 +395,11 @@ export function useFloorPlan() {
           setSelectedTableId(tableData[0].id)
         } else {
           setSelectedTableId(null)
-        }
+      }
       } catch (err) {
         console.error("Failed to load floor plan:", err)
         setError(err instanceof Error ? err.message : "Failed to load floor plan")
-      } finally {
+    } finally {
         if (mounted) {
           setLoading(false)
           setHydrated(true)
@@ -663,8 +663,8 @@ export function useFloorPlan() {
       if (!id.startsWith("temp-")) {
         await deleteTableBlueprint(id)
       }
-      setTablesData((prev) => prev.filter((table) => table.id !== id))
-      setSelectedTableId((current) => (current === id ? null : current))
+    setTablesData((prev) => prev.filter((table) => table.id !== id))
+    setSelectedTableId((current) => (current === id ? null : current))
     },
     [ensureDraftVersion]
   )
