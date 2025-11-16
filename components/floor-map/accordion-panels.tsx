@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { PlusCircle, RefreshCcw, ChevronDown, Menu, Square, Circle, Minus, Settings, Trash2, ChevronRight, Plus, Minus as MinusIcon, X } from "lucide-react"
+import { LBoothIcon, UBoothIcon, CornerBoothIcon, RectangularTableIcon, BarTableIcon } from "./booth-icons"
 import type { FloorTable, FloorTableType, FloorTableStatus, SeatSections } from "@/hooks/use-floor-plan"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -976,9 +977,15 @@ export function AccordionPanels({
                   const TableIcon = table.type === "circle"
                     ? Circle
                     : table.type === "bar"
-                    ? Minus
-                    : table.type === "l-booth" || table.type === "u-booth" || table.type === "corner-booth"
-                    ? Minus // Use Minus for booths for now
+                    ? BarTableIcon
+                    : table.type === "l-booth"
+                    ? LBoothIcon
+                    : table.type === "u-booth"
+                    ? UBoothIcon
+                    : table.type === "corner-booth"
+                    ? CornerBoothIcon
+                    : table.type === "rectangular"
+                    ? RectangularTableIcon
                     : Square
 
                   return (
@@ -991,7 +998,11 @@ export function AccordionPanels({
                       onClick={() => onSelect(table.id)}
                     >
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <TableIcon className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
+                        {table.type === "l-booth" || table.type === "u-booth" || table.type === "corner-booth" || table.type === "rectangular" || table.type === "bar" ? (
+                          <TableIcon className="h-4 w-4" strokeWidth={1.5} />
+                        ) : (
+                          <TableIcon className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{table.name}</p>
