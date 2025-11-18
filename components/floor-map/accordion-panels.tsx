@@ -159,11 +159,11 @@ export function AccordionPanels({
     if (selectedTable) {
       if (!isMobile) {
         // Reset manual close flag when a new table is selected (desktop only)
-        if (isNewTable) {
-          manuallyClosedRef.current = false
-        }
+      if (isNewTable) {
+        manuallyClosedRef.current = false
+      }
         // Open details panel automatically on desktop (unless manually closed)
-        if (!manuallyClosedRef.current) {
+      if (!manuallyClosedRef.current) {
           setOpenPanel("details")
         }
       }

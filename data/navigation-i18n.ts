@@ -13,7 +13,7 @@ import {
   IconLayout2,
   type Icon,
 } from "@tabler/icons-react"
-import { SquareMenu, Settings2, ClipboardList } from "lucide-react"
+import { SquareMenu, Settings2, ClipboardList, CalendarClock } from "lucide-react"
 import type { NavItem, NavSection } from "./navigation"
 import type { Locale } from "@/lib/i18n"
 import { t } from "@/lib/i18n"
@@ -56,6 +56,12 @@ export function getNavigationData(locale: Locale): (NavItem | NavSection)[] {
           url: "/qr-codes",
           icon: IconQrcode,
           tooltip: translations("navigation.qrCodesTooltip"),
+        },
+        {
+          title: translations("navigation.reservations") || "Reservations",
+          url: "/reservations",
+          icon: CalendarClock,
+          tooltip: translations("navigation.reservationsTooltip") || "View and manage upcoming reservations",
         },
         {
           title: translations("navigation.floorMap"),

@@ -25,6 +25,7 @@ type FloorMapCanvasProps = {
   onPositionChange: (id: string, x: number, y: number) => void
   mobileDetailsOpen?: boolean // Mobile drawer open state
   isMobile?: boolean // Whether we're on mobile
+  readOnly?: boolean // If true, disable dragging and editing
 }
 
 // All tables use light grey colors regardless of status
@@ -45,6 +46,7 @@ type DraggableTableProps = {
   allTables: FloorTable[]
   onDragUpdate?: (guideLines: AlignmentGuideLine[]) => void
   isSpacePressed?: boolean
+  readOnly?: boolean
 }
 
 // Calculate seat positions around the table
@@ -475,9 +477,10 @@ function calculateAlignmentSnap(
   }
 }
 
-function DraggableTable({ table, isSelected, onSelect, scaleX, scaleY, allTables, onDragUpdate, isSpacePressed = false }: DraggableTableProps) {
+function DraggableTable({ table, isSelected, onSelect, scaleX, scaleY, allTables, onDragUpdate, isSpacePressed = false, readOnly = false }: DraggableTableProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: table.id,
+    disabled: readOnly,
   })
   const setRef = useCallback(
     (node: SVGGElement | null) => {
@@ -770,6 +773,15 @@ function DraggableTable({ table, isSelected, onSelect, scaleX, scaleY, allTables
 
   // Merge our mouse down handler with drag sensor's listeners
   const mergedListeners = useMemo(() => {
+    if (readOnly) {
+      // In read-only mode, only allow selection, no dragging
+      return {
+        onClick: (e: React.MouseEvent) => {
+          e.stopPropagation()
+          onSelect(table.id)
+        },
+      }
+    }
     const originalOnMouseDown = (listeners as any)?.onMouseDown
     const originalOnMouseUp = (listeners as any)?.onMouseUp
     return {
@@ -816,7 +828,7 @@ function DraggableTable({ table, isSelected, onSelect, scaleX, scaleY, allTables
         }
       },
     }
-  }, [listeners, onSelect, table.id, isSpacePressed, isDragging])
+  }, [listeners, onSelect, table.id, isSpacePressed, isDragging, readOnly])
 
   return (
     <g
@@ -885,6 +897,7 @@ export function FloorMapCanvas({
   onPositionChange,
   mobileDetailsOpen = false,
   isMobile = false,
+  readOnly = false,
 }: FloorMapCanvasProps) {
   const [zoom, setZoom] = useState(1)
   const [viewBoxX, setViewBoxX] = useState(0)
@@ -909,9 +922,11 @@ export function FloorMapCanvas({
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: { distance: 6 },
+      disabled: readOnly,
     }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: 120, tolerance: 8 },
+      disabled: readOnly,
     }),
   )
 
@@ -928,21 +943,33 @@ export function FloorMapCanvas({
 
   useEffect(() => {
     if (!svgRef.current) return
-    const updateScaleFactors = () => {
-      if (!svgRef.current) return
-      const svgRect = svgRef.current.getBoundingClientRect()
-      setContainerSize({ width: svgRect.width, height: svgRect.height })
-      setScaleFactors({
-        scaleX: viewBoxWidth / svgRect.width,
-        scaleY: viewBoxHeight / svgRect.height,
+
+    const element = svgRef.current
+    const updateContainerSize = () => {
+      const svgRect = element.getBoundingClientRect()
+      setContainerSize((prev) => {
+        const width = svgRect.width || 1
+        const height = svgRect.height || 1
+        if (prev.width === width && prev.height === height) {
+          return prev
+        }
+        return { width, height }
       })
     }
-    updateScaleFactors()
-    // Update on resize
-    const resizeObserver = new ResizeObserver(updateScaleFactors)
-    resizeObserver.observe(svgRef.current)
+
+    updateContainerSize()
+    const resizeObserver = new ResizeObserver(updateContainerSize)
+    resizeObserver.observe(element)
     return () => resizeObserver.disconnect()
-  }, [viewBoxWidth, viewBoxHeight])
+  }, [])
+
+  useEffect(() => {
+    if (containerSize.width === 0 || containerSize.height === 0) return
+    setScaleFactors({
+      scaleX: viewBoxWidth / containerSize.width,
+      scaleY: viewBoxHeight / containerSize.height,
+    })
+  }, [viewBoxWidth, viewBoxHeight, containerSize.width, containerSize.height])
 
   // Auto-fit viewBox to show all tables
   const autoFitViewBox = useCallback(() => {
@@ -1581,6 +1608,7 @@ export function FloorMapCanvas({
               allTables={tables}
               onDragUpdate={handleDragUpdate}
               isSpacePressed={isSpacePressed}
+              readOnly={readOnly}
             />
           ))}
           </svg>

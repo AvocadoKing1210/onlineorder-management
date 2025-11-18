@@ -12,7 +12,7 @@ import {
   IconLayout2,
   type Icon,
 } from "@tabler/icons-react"
-import { SquareMenu, ClipboardList } from "lucide-react"
+import { SquareMenu, ClipboardList, CalendarClock } from "lucide-react"
 
 export type NavItem = {
   title: string
@@ -56,6 +56,12 @@ export const navigationData: (NavItem | NavSection)[] = [
         url: "/qr-codes",
         icon: IconQrcode,
         tooltip: "Generate and manage QR codes for dine-in",
+      },
+      {
+        title: "Reservations",
+        url: "/reservations",
+        icon: CalendarClock,
+        tooltip: "View and manage upcoming reservations",
       },
       {
         title: "Floor Map",
